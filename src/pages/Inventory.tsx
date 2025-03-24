@@ -25,7 +25,7 @@ const Inventory = () => {
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItemType | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterRua, setFilterRua] = useState<string>('');
+  const [filterRua, setFilterRua] = useState<string>('all');
 
   const handleEditItem = (item: InventoryItemType) => {
     setSelectedItem(item);
@@ -51,7 +51,7 @@ const Inventory = () => {
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.codSAP.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesRua = filterRua === '' || item.address.rua === filterRua;
+    const matchesRua = filterRua === 'all' || item.address.rua === filterRua;
     
     return matchesSearch && matchesRua;
   });
@@ -99,7 +99,7 @@ const Inventory = () => {
                 <SelectValue placeholder="Filter by Rua" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Ruas</SelectItem>
+                <SelectItem value="all">All Ruas</SelectItem>
                 {uniqueRuas.map(rua => (
                   <SelectItem key={rua} value={rua}>{rua}</SelectItem>
                 ))}
@@ -130,7 +130,7 @@ const Inventory = () => {
             <BoxesIcon className="h-16 w-16 mb-4 opacity-20" />
             <h3 className="text-xl font-medium">No items found</h3>
             <p className="text-sm mt-2">
-              {searchQuery || filterRua
+              {searchQuery || filterRua !== 'all'
                 ? "Try changing your search or filter criteria"
                 : "Add your first inventory item to get started"}
             </p>
