@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import PageLayout from '@/components/layout/PageLayout';
 import { useInventory } from '@/context/InventoryContext';
 import WarehouseVisualization from '@/components/visualization/WarehouseVisualization';
@@ -26,7 +26,7 @@ const StatCard = ({ title, value, icon, className }: { title: string; value: num
 );
 
 const Dashboard = () => {
-  const { items, movements, getItemsByAddress } = useInventory();
+  const { items, movements } = useInventory();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const isMobile = useIsMobile();
@@ -35,7 +35,17 @@ const Dashboard = () => {
     setSelectedAddress(address);
   };
 
-  const itemsAtAddress = selectedAddress ? getItemsByAddress(selectedAddress) : [];
+  // Implementar a lógica de filtrar itens por endereço aqui
+  const itemsAtAddress = useMemo(() => {
+    if (!selectedAddress) return [];
+    
+    return items.filter(item => 
+      item.address.rua === selectedAddress.rua &&
+      item.address.bloco === selectedAddress.bloco &&
+      item.address.altura === selectedAddress.altura &&
+      item.address.lado === selectedAddress.lado
+    );
+  }, [items, selectedAddress]);
 
   const lastMovements = [...movements]
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
