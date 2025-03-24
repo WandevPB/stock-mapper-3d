@@ -1,156 +1,165 @@
 
 import React, { useState } from 'react';
 import PageLayout from '@/components/layout/PageLayout';
-import { useInventory } from '@/context/InventoryContext';
-import InventoryItem from '@/components/inventory/InventoryItem';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { PlusCircle, Search, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import InventoryForm from '@/components/inventory/InventoryForm';
+import InventoryItem from '@/components/inventory/InventoryItem';
 import MoveItemForm from '@/components/inventory/MoveItemForm';
 import { InventoryItem as InventoryItemType } from '@/types/inventory';
-import { BoxesIcon, Plus, Search, Filter } from 'lucide-react';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useInventory } from '@/context/InventoryContext';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const Inventory = () => {
-  const { items, getItemsByAddress } = useInventory();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<InventoryItemType | null>(null);
+  const { items, isLoading, isError, refreshData } = useInventory();
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterRua, setFilterRua] = useState<string>('all');
-  const isMobile = useIsMobile();
+  const [openItemModal, setOpenItemModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<InventoryItemType | null>(null);
+  const [moveItemModalOpen, setMoveItemModalOpen] = useState(false);
+  const [itemToMove, setItemToMove] = useState<InventoryItemType | null>(null);
+
+  // Filter items based on search query
+  const filteredItems = items.filter(item => {
+    const query = searchQuery.toLowerCase();
+    return (
+      item.name.toLowerCase().includes(query) ||
+      item.codSAP.toLowerCase().includes(query) ||
+      `${item.address.rua}-${item.address.bloco}-${item.address.altura}-${item.address.lado}`.toLowerCase().includes(query)
+    );
+  });
 
   const handleEditItem = (item: InventoryItemType) => {
     setSelectedItem(item);
-    setIsDialogOpen(true);
+    setOpenItemModal(true);
   };
 
   const handleMoveItem = (item: InventoryItemType) => {
-    setSelectedItem(item);
-    setIsMoveDialogOpen(true);
+    setItemToMove(item);
+    setMoveItemModalOpen(true);
   };
 
-  const closeDialogs = () => {
-    setIsDialogOpen(false);
-    setIsMoveDialogOpen(false);
+  const handleAddSuccess = () => {
+    setOpenItemModal(false);
     setSelectedItem(null);
   };
 
-  const uniqueRuas = [...new Set(items.map(item => item.address.rua))].sort();
+  const handleMoveSuccess = () => {
+    setMoveItemModalOpen(false);
+    setItemToMove(null);
+  };
 
-  const filteredItems = items.filter(item => {
-    const matchesSearch = 
-      searchQuery === '' || 
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.codSAP.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesRua = filterRua === 'all' || item.address.rua === filterRua;
-    
-    return matchesSearch && matchesRua;
-  });
+  // Render loading skeletons
+  const renderSkeletons = () => {
+    return Array(6).fill(0).map((_, index) => (
+      <Card key={index} className="glass-card h-full shadow-sm">
+        <CardContent className="p-4">
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-full" />
+            <div className="flex justify-between pt-2">
+              <Skeleton className="h-8 w-8 rounded-md" />
+              <Skeleton className="h-8 w-8 rounded-md" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    ));
+  };
 
   return (
     <PageLayout>
-      <div className="space-y-6 animate-fade-in">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-semibold title-gradient">Controle de Estoque</h1>
-            <p className="text-muted-foreground mt-1">Visualize, adicione e gerencie itens do estoque</p>
-          </div>
-          
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-inventory-orange hover:bg-inventory-orange-dark">
-                <Plus className="mr-2 h-4 w-4" /> Novo Item
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="glass-card">
-              <InventoryForm 
-                item={selectedItem || undefined} 
-                onSuccess={closeDialogs} 
-                onCancel={closeDialogs}
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+          <h1 className="text-2xl font-bold text-inventory-orange">Inventário</h1>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-none">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Buscar item..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8"
               />
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Buscar por nome ou código SAP..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Filter className="text-muted-foreground h-4 w-4" />
-            <Select value={filterRua} onValueChange={setFilterRua}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Filtrar por Rua" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas as Ruas</SelectItem>
-                {uniqueRuas.map(rua => (
-                  <SelectItem key={rua} value={rua}>{rua}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="flex items-center">
-            <Badge variant="outline" className="bg-inventory-orange/10 text-inventory-orange">
-              {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'itens'}
-            </Badge>
+            </div>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={refreshData} 
+              className="hidden sm:flex"
+              title="Atualizar dados"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Dialog open={openItemModal} onOpenChange={setOpenItemModal}>
+              <DialogTrigger asChild>
+                <Button className="bg-inventory-orange hover:bg-inventory-orange-dark w-full sm:w-auto gap-2">
+                  <PlusCircle className="h-4 w-4" />
+                  <span>Adicionar Item</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md sm:max-w-lg">
+                <InventoryForm 
+                  item={selectedItem || undefined} 
+                  onSuccess={handleAddSuccess} 
+                  onCancel={() => setOpenItemModal(false)}
+                />
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
-        {filteredItems.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredItems.map(item => (
-              <InventoryItem
-                key={item.id}
-                item={item}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {isLoading ? (
+            renderSkeletons()
+          ) : isError ? (
+            <div className="col-span-full p-8 text-center">
+              <p className="text-destructive">
+                Ocorreu um erro ao carregar os itens. Por favor, tente novamente.
+              </p>
+              <Button 
+                onClick={refreshData} 
+                variant="outline" 
+                className="mt-4"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Tentar novamente
+              </Button>
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="col-span-full p-8 text-center">
+              <p className="text-muted-foreground">
+                {searchQuery ? 'Nenhum item encontrado para a busca.' : 'Nenhum item no inventário. Adicione um item para começar.'}
+              </p>
+            </div>
+          ) : (
+            filteredItems.map(item => (
+              <InventoryItem 
+                key={item.id} 
+                item={item} 
                 onEdit={handleEditItem}
                 onMove={handleMoveItem}
               />
-            ))}
-          </div>
-        ) : (
-          <div className="h-60 flex flex-col items-center justify-center text-muted-foreground">
-            <BoxesIcon className="h-16 w-16 mb-4 opacity-20" />
-            <h3 className="text-xl font-medium">Nenhum item encontrado</h3>
-            <p className="text-sm mt-2">
-              {searchQuery || filterRua !== 'all'
-                ? "Tente alterar seus critérios de busca ou filtro"
-                : "Adicione seu primeiro item ao estoque para começar"}
-            </p>
-          </div>
-        )}
-      </div>
-      
-      <Dialog open={isMoveDialogOpen} onOpenChange={setIsMoveDialogOpen}>
-        <DialogContent className="glass-card">
-          {selectedItem && (
-            <MoveItemForm 
-              item={selectedItem} 
-              onSuccess={closeDialogs} 
-              onCancel={closeDialogs}
-            />
+            ))
           )}
-        </DialogContent>
-      </Dialog>
+        </div>
+
+        <Dialog open={moveItemModalOpen} onOpenChange={setMoveItemModalOpen}>
+          <DialogContent className="max-w-md sm:max-w-lg">
+            {itemToMove && (
+              <MoveItemForm 
+                item={itemToMove} 
+                onSuccess={handleMoveSuccess} 
+                onCancel={() => setMoveItemModalOpen(false)}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
     </PageLayout>
   );
 };

@@ -1,165 +1,134 @@
 
 import React, { useState } from 'react';
 import PageLayout from '@/components/layout/PageLayout';
-import { useInventory } from '@/context/InventoryContext';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Search as SearchIcon, X } from 'lucide-react';
-import InventoryItem from '@/components/inventory/InventoryItem';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
-import InventoryForm from '@/components/inventory/InventoryForm';
-import MoveItemForm from '@/components/inventory/MoveItemForm';
+import { Card, CardContent } from '@/components/ui/card';
 import { InventoryItem as InventoryItemType } from '@/types/inventory';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useInventory } from '@/context/InventoryContext';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const Search = () => {
   const { searchItems } = useInventory();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<InventoryItemType[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<InventoryItemType | null>(null);
-  const isMobile = useIsMobile();
 
-  const handleSearch = () => {
-    if (searchQuery.trim()) {
-      const results = searchItems(searchQuery);
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!searchQuery.trim()) return;
+    
+    setIsSearching(true);
+    setHasSearched(true);
+    
+    try {
+      const results = await searchItems(searchQuery);
       setSearchResults(results);
-      setHasSearched(true);
+    } catch (error) {
+      console.error('Error searching inventory items:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
     }
   };
 
-  const handleClearSearch = () => {
+  const clearSearch = () => {
     setSearchQuery('');
     setSearchResults([]);
     setHasSearched(false);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleSearch();
-    }
-  };
-
-  const handleEditItem = (item: InventoryItemType) => {
-    setSelectedItem(item);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleMoveItem = (item: InventoryItemType) => {
-    setSelectedItem(item);
-    setIsMoveDialogOpen(true);
-  };
-
-  const closeDialogs = () => {
-    setIsEditDialogOpen(false);
-    setIsMoveDialogOpen(false);
-    setSelectedItem(null);
-    // Refresh search results after edit/move
-    if (searchQuery.trim()) {
-      const results = searchItems(searchQuery);
-      setSearchResults(results);
-    }
+  const formatAddress = (item: InventoryItemType) => {
+    const { rua, bloco, altura, lado } = item.address;
+    return `${rua}-${bloco}-${altura}-${lado}`;
   };
 
   return (
     <PageLayout>
-      <div className="space-y-8 animate-fade-in">
-        <div>
-          <h1 className="text-3xl font-semibold title-gradient">Busca de Itens</h1>
-          <p className="text-muted-foreground mt-1">Encontre itens por nome, código SAP ou localização</p>
-        </div>
-
-        <Card className="glass-card">
-          <CardContent className="p-6">
-            <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2">
-              <div className="relative flex-1 w-full">
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-2xl font-bold text-inventory-orange mb-6">Buscar Item</h1>
+        
+        <Card className="glass-card mb-8">
+          <CardContent className="pt-6">
+            <form onSubmit={handleSearch} className="flex gap-2">
+              <div className="relative flex-1">
                 <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
-                  placeholder="Busque por nome, código SAP ou localização (ex: A-1-2-B)"
+                  type="text"
+                  placeholder="Digite o código SAP ou nome do item..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className="pl-10 w-full"
+                  className="pl-10 pr-10"
                 />
                 {searchQuery && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6"
-                    onClick={handleClearSearch}
+                  <button
+                    type="button"
+                    onClick={clearSearch}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     <X className="h-4 w-4" />
-                  </Button>
+                  </button>
                 )}
               </div>
-              <Button 
-                onClick={handleSearch} 
-                className="bg-inventory-orange hover:bg-inventory-orange-dark w-full sm:w-auto"
-              >
+              <Button type="submit" className="bg-inventory-orange hover:bg-inventory-orange-dark">
                 Buscar
               </Button>
-            </div>
+            </form>
           </CardContent>
         </Card>
 
-        {hasSearched && (
+        {isSearching ? (
           <div className="space-y-4">
-            <h2 className="text-xl font-medium">
-              Resultados da Busca {searchResults.length > 0 && `(${searchResults.length})`}
-            </h2>
-            
-            {searchResults.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {searchResults.map(item => (
-                  <InventoryItem
-                    key={item.id}
-                    item={item}
-                    onEdit={handleEditItem}
-                    onMove={handleMoveItem}
-                  />
-                ))}
-              </div>
-            ) : (
-              <Card className="glass-card">
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <SearchIcon className="h-12 w-12 text-muted-foreground opacity-20 mb-4" />
-                  <h3 className="text-lg font-medium">Nenhum item encontrado</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Tente um termo de busca diferente ou verifique a ortografia
-                  </p>
+            {Array(3).fill(0).map((_, index) => (
+              <Card key={index} className="glass-card">
+                <CardContent className="p-4">
+                  <div className="space-y-2">
+                    <Skeleton className="h-5 w-1/3" />
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-4 w-2/3" />
+                  </div>
                 </CardContent>
               </Card>
-            )}
+            ))}
           </div>
-        )}
+        ) : hasSearched ? (
+          searchResults.length > 0 ? (
+            <div className="space-y-4">
+              {searchResults.map((item) => (
+                <Card key={item.id} className="glass-card hover:shadow-md transition-all duration-300">
+                  <CardContent className="p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div>
+                        <h3 className="font-medium">Nome</h3>
+                        <p>{item.name}</p>
+                      </div>
+                      <div>
+                        <h3 className="font-medium">Código SAP</h3>
+                        <p>{item.codSAP}</p>
+                      </div>
+                      <div>
+                        <h3 className="font-medium">Localização</h3>
+                        <p>{formatAddress(item)}</p>
+                      </div>
+                      <div>
+                        <h3 className="font-medium">Quantidade</h3>
+                        <p>{item.quantity !== undefined ? item.quantity : 'Não contado'}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Nenhum item encontrado para "{searchQuery}".</p>
+            </div>
+          )
+        ) : null}
       </div>
-
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="glass-card">
-          {selectedItem && (
-            <InventoryForm 
-              item={selectedItem} 
-              onSuccess={closeDialogs} 
-              onCancel={closeDialogs}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isMoveDialogOpen} onOpenChange={setIsMoveDialogOpen}>
-        <DialogContent className="glass-card">
-          {selectedItem && (
-            <MoveItemForm 
-              item={selectedItem} 
-              onSuccess={closeDialogs} 
-              onCancel={closeDialogs}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </PageLayout>
   );
 };

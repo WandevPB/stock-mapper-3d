@@ -1,207 +1,193 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { InventoryItem, Movement, Address } from '@/types/inventory';
+import { InventoryItem, Address, Movement } from '@/types/inventory';
+import { SupabaseService } from '@/services/SupabaseService';
 import { toast } from '@/components/ui/use-toast';
-import { v4 as uuidv4 } from 'uuid';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface InventoryContextType {
   items: InventoryItem[];
   movements: Movement[];
-  addItem: (item: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateItem: (id: string, updates: Partial<Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>>) => void;
-  deleteItem: (id: string) => void;
-  moveItem: (itemId: string, toAddress: Address, quantity?: number) => void;
-  getItemsByAddress: (address: Partial<Address>) => InventoryItem[];
-  getItemById: (id: string) => InventoryItem | undefined;
-  searchItems: (query: string) => InventoryItem[];
+  isLoading: boolean;
+  isError: boolean;
+  addItem: (item: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateItem: (id: string, item: Partial<Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>>) => Promise<void>;
+  deleteItem: (id: string) => Promise<void>;
+  moveItem: (id: string, newAddress: Address, quantity?: number) => Promise<void>;
+  searchItems: (query: string) => Promise<InventoryItem[]>;
+  refreshData: () => void;
 }
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
 
-const STORAGE_KEY_ITEMS = 'inventory-items';
-const STORAGE_KEY_MOVEMENTS = 'inventory-movements';
-
 export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [items, setItems] = useState<InventoryItem[]>(() => {
-    const storedItems = localStorage.getItem(STORAGE_KEY_ITEMS);
-    if (storedItems) {
-      try {
-        const parsedItems = JSON.parse(storedItems);
-        return parsedItems.map((item: any) => ({
-          ...item,
-          createdAt: new Date(item.createdAt),
-          updatedAt: new Date(item.updatedAt)
-        }));
-      } catch (error) {
-        console.error('Failed to parse stored items', error);
-        return [];
-      }
-    }
-    return [];
+  const queryClient = useQueryClient();
+
+  // Fetch inventory items
+  const { 
+    data: items = [], 
+    isLoading: isItemsLoading, 
+    isError: isItemsError,
+    refetch: refetchItems
+  } = useQuery({
+    queryKey: ['inventoryItems'],
+    queryFn: SupabaseService.fetchInventoryItems
   });
 
-  const [movements, setMovements] = useState<Movement[]>(() => {
-    const storedMovements = localStorage.getItem(STORAGE_KEY_MOVEMENTS);
-    if (storedMovements) {
-      try {
-        const parsedMovements = JSON.parse(storedMovements);
-        return parsedMovements.map((movement: any) => ({
-          ...movement,
-          timestamp: new Date(movement.timestamp)
-        }));
-      } catch (error) {
-        console.error('Failed to parse stored movements', error);
-        return [];
-      }
-    }
-    return [];
+  // Fetch movements
+  const { 
+    data: movements = [], 
+    isLoading: isMovementsLoading, 
+    isError: isMovementsError,
+    refetch: refetchMovements
+  } = useQuery({
+    queryKey: ['movements'],
+    queryFn: SupabaseService.fetchMovements
   });
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_ITEMS, JSON.stringify(items));
-  }, [items]);
+  // Add item mutation
+  const addItemMutation = useMutation({
+    mutationFn: SupabaseService.addInventoryItem,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventoryItems'] });
+      queryClient.invalidateQueries({ queryKey: ['movements'] });
+      toast({
+        title: "Item adicionado",
+        description: "O item foi adicionado com sucesso ao inventário.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: `Não foi possível adicionar o item: ${error.message}`,
+      });
+    }
+  });
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_MOVEMENTS, JSON.stringify(movements));
-  }, [movements]);
+  // Update item mutation
+  const updateItemMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string, updates: any }) => 
+      SupabaseService.updateInventoryItem(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventoryItems'] });
+      toast({
+        title: "Item atualizado",
+        description: "O item foi atualizado com sucesso.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: `Não foi possível atualizar o item: ${error.message}`,
+      });
+    }
+  });
 
-  const addItem = (itemData: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const now = new Date();
-    const newItem: InventoryItem = {
-      ...itemData,
-      id: uuidv4(),
-      createdAt: now,
-      updatedAt: now
-    };
+  // Delete item mutation
+  const deleteItemMutation = useMutation({
+    mutationFn: SupabaseService.deleteInventoryItem,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventoryItems'] });
+      queryClient.invalidateQueries({ queryKey: ['movements'] });
+      toast({
+        title: "Item removido",
+        description: "O item foi removido com sucesso do inventário.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: `Não foi possível remover o item: ${error.message}`,
+      });
+    }
+  });
 
-    setItems(prevItems => [...prevItems, newItem]);
-    
-    const movement: Movement = {
-      id: uuidv4(),
-      itemId: newItem.id,
-      fromAddress: null,
-      toAddress: newItem.address,
-      quantity: newItem.quantity,
-      type: 'add',
-      timestamp: now
-    };
-    
-    setMovements(prevMovements => [...prevMovements, movement]);
-    
+  // Move item mutation
+  const moveItemMutation = useMutation({
+    mutationFn: ({ id, newAddress, quantity }: { id: string, newAddress: Address, quantity?: number }) => 
+      SupabaseService.moveInventoryItem(id, newAddress, quantity),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventoryItems'] });
+      queryClient.invalidateQueries({ queryKey: ['movements'] });
+      toast({
+        title: "Item movido",
+        description: "O item foi movido com sucesso para o novo endereço.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: `Não foi possível mover o item: ${error.message}`,
+      });
+    }
+  });
+
+  const isLoading = isItemsLoading || isMovementsLoading;
+  const isError = isItemsError || isMovementsError;
+
+  const addItem = async (newItem: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>) => {
+    await addItemMutation.mutateAsync(newItem);
+  };
+
+  const updateItem = async (id: string, updates: Partial<Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>>) => {
+    await updateItemMutation.mutateAsync({ id, updates });
+  };
+
+  const deleteItem = async (id: string) => {
+    await deleteItemMutation.mutateAsync(id);
+  };
+
+  const moveItem = async (id: string, newAddress: Address, quantity?: number) => {
+    await moveItemMutation.mutateAsync({ id, newAddress, quantity });
+  };
+
+  const searchItems = async (query: string): Promise<InventoryItem[]> => {
+    try {
+      return await SupabaseService.searchInventoryItems(query);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro na busca",
+        description: `Não foi possível buscar itens: ${error.message}`,
+      });
+      return [];
+    }
+  };
+
+  const refreshData = () => {
+    refetchItems();
+    refetchMovements();
     toast({
-      title: "Item Added",
-      description: `${newItem.name} has been added to inventory.`,
+      title: "Dados atualizados",
+      description: "Os dados do inventário foram atualizados.",
     });
-  };
-
-  const updateItem = (id: string, updates: Partial<Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>>) => {
-    setItems(prevItems => 
-      prevItems.map(item => 
-        item.id === id 
-          ? { ...item, ...updates, updatedAt: new Date() } 
-          : item
-      )
-    );
-    
-    toast({
-      title: "Item Updated",
-      description: "The inventory item has been updated.",
-    });
-  };
-
-  const deleteItem = (id: string) => {
-    const itemToDelete = items.find(item => item.id === id);
-    
-    if (!itemToDelete) return;
-    
-    setItems(prevItems => prevItems.filter(item => item.id !== id));
-    
-    const movement: Movement = {
-      id: uuidv4(),
-      itemId: id,
-      fromAddress: itemToDelete.address,
-      toAddress: null,
-      quantity: itemToDelete.quantity,
-      type: 'remove',
-      timestamp: new Date()
-    };
-    
-    setMovements(prevMovements => [...prevMovements, movement]);
-    
-    toast({
-      title: "Item Removed",
-      description: `${itemToDelete.name} has been removed from inventory.`,
-    });
-  };
-
-  const moveItem = (itemId: string, toAddress: Address, quantity?: number) => {
-    const itemToMove = items.find(item => item.id === itemId);
-    
-    if (!itemToMove) return;
-    
-    const fromAddress = { ...itemToMove.address };
-    
-    updateItem(itemId, { address: toAddress, quantity });
-    
-    const movement: Movement = {
-      id: uuidv4(),
-      itemId,
-      fromAddress,
-      toAddress,
-      quantity,
-      type: 'move',
-      timestamp: new Date()
-    };
-    
-    setMovements(prevMovements => [...prevMovements, movement]);
-    
-    toast({
-      title: "Item Moved",
-      description: `${itemToMove.name} has been moved to a new location.`,
-    });
-  };
-
-  const getItemsByAddress = (addressFilter: Partial<Address>) => {
-    return items.filter(item => {
-      const address = item.address;
-      return (
-        (!addressFilter.rua || address.rua === addressFilter.rua) &&
-        (!addressFilter.bloco || address.bloco === addressFilter.bloco) &&
-        (!addressFilter.altura || address.altura === addressFilter.altura) &&
-        (!addressFilter.lado || address.lado === addressFilter.lado)
-      );
-    });
-  };
-
-  const getItemById = (id: string) => {
-    return items.find(item => item.id === id);
-  };
-
-  const searchItems = (query: string) => {
-    const lowercaseQuery = query.toLowerCase();
-    return items.filter(item => 
-      item.name.toLowerCase().includes(lowercaseQuery) ||
-      item.codSAP.toLowerCase().includes(lowercaseQuery) ||
-      `${item.address.rua}-${item.address.bloco}-${item.address.altura}-${item.address.lado}`.toLowerCase().includes(lowercaseQuery)
-    );
   };
 
   const value = {
     items,
     movements,
+    isLoading,
+    isError,
     addItem,
     updateItem,
     deleteItem,
     moveItem,
-    getItemsByAddress,
-    getItemById,
-    searchItems
+    searchItems,
+    refreshData
   };
 
-  return <InventoryContext.Provider value={value}>{children}</InventoryContext.Provider>;
+  return (
+    <InventoryContext.Provider value={value}>
+      {children}
+    </InventoryContext.Provider>
+  );
 };
 
-export const useInventory = () => {
+export const useInventory = (): InventoryContextType => {
   const context = useContext(InventoryContext);
   if (context === undefined) {
     throw new Error('useInventory must be used within an InventoryProvider');

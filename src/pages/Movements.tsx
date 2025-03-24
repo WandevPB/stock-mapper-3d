@@ -1,160 +1,154 @@
 
 import React from 'react';
 import PageLayout from '@/components/layout/PageLayout';
-import { useInventory } from '@/context/InventoryContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { format, formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { ArrowRight, ArrowDownUp, PackagePlus, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { RefreshCw, ArrowRight, PlusCircle, MoveIcon, Trash2 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { useInventory } from '@/context/InventoryContext';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const Movements = () => {
-  const { movements, getItemById } = useInventory();
-  const isMobile = useIsMobile();
+  const { movements, isLoading, isError, refreshData } = useInventory();
 
-  const sortedMovements = [...movements].sort((a, b) => 
-    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
-
-  const formatAddress = (address: { rua: string; bloco: string; altura: string; lado: string }) => {
+  const formatAddress = (address: any) => {
+    if (!address) return 'N/A';
     return `${address.rua}-${address.bloco}-${address.altura}-${address.lado}`;
-  };
-
-  const getMovementIcon = (type: string) => {
-    switch (type) {
-      case 'add':
-        return <PackagePlus className="h-5 w-5" />;
-      case 'move':
-        return <ArrowDownUp className="h-5 w-5" />;
-      case 'remove':
-        return <Trash2 className="h-5 w-5" />;
-      default:
-        return null;
-    }
-  };
-
-  const getMovementBadge = (type: string) => {
-    switch (type) {
-      case 'add':
-        return (
-          <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-            Adicionado
-          </Badge>
-        );
-      case 'move':
-        return (
-          <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
-            Movido
-          </Badge>
-        );
-      case 'remove':
-        return (
-          <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
-            Removido
-          </Badge>
-        );
-      default:
-        return null;
-    }
   };
 
   const formatRelativeTime = (date: Date) => {
     return formatDistanceToNow(date, { addSuffix: true, locale: ptBR });
   };
 
+  const getMovementTypeDetails = (type: 'add' | 'move' | 'remove') => {
+    switch (type) {
+      case 'add':
+        return {
+          label: 'Entrada',
+          icon: <PlusCircle className="h-4 w-4" />,
+          color: 'bg-green-100 text-green-800'
+        };
+      case 'move':
+        return {
+          label: 'Movimentação',
+          icon: <MoveIcon className="h-4 w-4" />,
+          color: 'bg-blue-100 text-blue-800'
+        };
+      case 'remove':
+        return {
+          label: 'Saída',
+          icon: <Trash2 className="h-4 w-4" />,
+          color: 'bg-red-100 text-red-800'
+        };
+      default:
+        return {
+          label: 'Desconhecido',
+          icon: null,
+          color: 'bg-gray-100 text-gray-800'
+        };
+    }
+  };
+
   return (
     <PageLayout>
-      <div className="space-y-6 animate-fade-in">
-        <div>
-          <h1 className="text-3xl font-semibold title-gradient">Histórico de Movimentações</h1>
-          <p className="text-muted-foreground mt-1">Acompanhe todas as movimentações e alterações no estoque</p>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-inventory-orange">Movimentações</h1>
+          <Button 
+            variant="outline" 
+            onClick={refreshData} 
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span className="hidden sm:inline">Atualizar</span>
+          </Button>
         </div>
 
-        <div className="space-y-4">
-          {sortedMovements.length > 0 ? (
-            sortedMovements.map((movement) => {
-              const item = getItemById(movement.itemId);
-              if (!item) return null;
-
+        {isLoading ? (
+          <div className="space-y-4">
+            {Array(5).fill(0).map((_, index) => (
+              <Card key={index} className="glass-card">
+                <CardContent className="py-4">
+                  <div className="flex items-center gap-4">
+                    <Skeleton className="h-10 w-20 rounded-md" />
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-5 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
+                    </div>
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : isError ? (
+          <div className="text-center py-10">
+            <p className="text-destructive mb-4">Ocorreu um erro ao carregar as movimentações.</p>
+            <Button 
+              onClick={refreshData} 
+              variant="outline" 
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Tentar novamente
+            </Button>
+          </div>
+        ) : movements.length === 0 ? (
+          <div className="text-center py-10">
+            <p className="text-muted-foreground">Nenhuma movimentação registrada.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {movements.map((movement) => {
+              const typeDetails = getMovementTypeDetails(movement.type);
+              
               return (
                 <Card key={movement.id} className="glass-card animate-hover">
-                  <CardContent className={`p-4 ${isMobile ? 'text-sm' : 'p-6'}`}>
-                    <div className={`flex ${isMobile ? 'flex-col gap-3' : 'items-start justify-between'}`}>
-                      <div className="flex items-start space-x-4">
-                        <div className={cn(
-                          "rounded-full p-2",
-                          movement.type === 'add' ? "bg-green-100" : 
-                          movement.type === 'move' ? "bg-blue-100" : "bg-red-100"
-                        )}>
-                          {getMovementIcon(movement.type)}
-                        </div>
+                  <CardContent className="py-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                      <Badge className={`px-3 py-1 ${typeDetails.color} flex items-center gap-1`}>
+                        {typeDetails.icon}
+                        {typeDetails.label}
+                      </Badge>
+                      
+                      <div className="flex-1">
+                        <h3 className="font-medium text-base">
+                          Item: {movement.itemId}
+                        </h3>
                         
-                        <div className="space-y-1">
-                          <div className="flex items-center space-x-2">
-                            <h3 className="font-medium">{item.name}</h3>
-                            {getMovementBadge(movement.type)}
-                          </div>
-                          
-                          <p className="text-sm text-muted-foreground">Código SAP: {item.codSAP}</p>
-                          
-                          {movement.type === 'move' && movement.fromAddress && movement.toAddress && (
-                            <div className="flex items-center text-sm mt-1">
-                              <span className="text-muted-foreground">
-                                {formatAddress(movement.fromAddress)}
-                              </span>
-                              <ArrowRight className="h-3 w-3 mx-2 text-muted-foreground" />
+                        <div className="text-sm text-muted-foreground mt-1">
+                          {movement.type === 'add' ? (
+                            <span>Adicionado em {formatAddress(movement.toAddress)}</span>
+                          ) : movement.type === 'remove' ? (
+                            <span>Removido de {formatAddress(movement.fromAddress)}</span>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span>{formatAddress(movement.fromAddress)}</span>
+                              <ArrowRight className="h-3 w-3" />
                               <span>{formatAddress(movement.toAddress)}</span>
                             </div>
                           )}
                           
-                          {movement.type === 'add' && movement.toAddress && (
-                            <p className="text-sm">
-                              <span className="text-muted-foreground">Localização: </span>
-                              {formatAddress(movement.toAddress)}
-                            </p>
-                          )}
-                          
-                          {movement.type === 'remove' && movement.fromAddress && (
-                            <p className="text-sm">
-                              <span className="text-muted-foreground">De: </span>
-                              {formatAddress(movement.fromAddress)}
-                            </p>
-                          )}
-                          
                           {movement.quantity !== undefined && (
-                            <p className="text-sm">
-                              <span className="text-muted-foreground">Quantidade: </span>
-                              {movement.quantity}
-                            </p>
+                            <span className="ml-2">
+                              Qtd: {movement.quantity}
+                            </span>
                           )}
                         </div>
                       </div>
                       
-                      <div className={`${isMobile ? '' : 'text-right'}`}>
-                        <div className="text-sm font-medium">
-                          {format(new Date(movement.timestamp), 'dd MMM, yyyy', { locale: ptBR })}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {formatRelativeTime(new Date(movement.timestamp))}
-                        </div>
-                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {formatRelativeTime(movement.timestamp)}
+                      </span>
                     </div>
                   </CardContent>
                 </Card>
               );
-            })
-          ) : (
-            <Card className="glass-card">
-              <CardHeader className="text-center py-10">
-                <CardTitle className="text-muted-foreground text-xl font-normal">
-                  Nenhum histórico de movimentação ainda
-                </CardTitle>
-              </CardHeader>
-            </Card>
-          )}
-        </div>
+            })}
+          </div>
+        )}
       </div>
     </PageLayout>
   );

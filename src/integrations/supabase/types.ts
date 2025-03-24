@@ -9,7 +9,123 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      addresses: {
+        Row: {
+          altura: string
+          bloco: string
+          created_at: string
+          id: string
+          lado: string
+          rua: string
+        }
+        Insert: {
+          altura: string
+          bloco: string
+          created_at?: string
+          id?: string
+          lado: string
+          rua: string
+        }
+        Update: {
+          altura?: string
+          bloco?: string
+          created_at?: string
+          id?: string
+          lado?: string
+          rua?: string
+        }
+        Relationships: []
+      }
+      inventory_items: {
+        Row: {
+          address_id: string
+          cod_sap: string
+          created_at: string
+          id: string
+          name: string
+          quantity: number | null
+          updated_at: string
+        }
+        Insert: {
+          address_id: string
+          cod_sap: string
+          created_at?: string
+          id?: string
+          name: string
+          quantity?: number | null
+          updated_at?: string
+        }
+        Update: {
+          address_id?: string
+          cod_sap?: string
+          created_at?: string
+          id?: string
+          name?: string
+          quantity?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movements: {
+        Row: {
+          from_address_id: string | null
+          id: string
+          item_id: string
+          quantity: number | null
+          timestamp: string
+          to_address_id: string | null
+          type: string
+        }
+        Insert: {
+          from_address_id?: string | null
+          id?: string
+          item_id: string
+          quantity?: number | null
+          timestamp?: string
+          to_address_id?: string | null
+          type: string
+        }
+        Update: {
+          from_address_id?: string | null
+          id?: string
+          item_id?: string
+          quantity?: number | null
+          timestamp?: string
+          to_address_id?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movements_from_address_id_fkey"
+            columns: ["from_address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movements_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movements_to_address_id_fkey"
+            columns: ["to_address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
