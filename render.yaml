@@ -1,0 +1,14 @@
+
+services:
+  - type: web
+    name: cdpb-inventory
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: 18.12.1
+      - key: VITE_SUPABASE_URL
+        value: https://hssyqauktqcizwblqhnc.supabase.co
+      - key: VITE_SUPABASE_ANON_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhzc3lxYXVrdHFjaXp3YmxxaG5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI4MzEzNDEsImV4cCI6MjA1ODQwNzM0MX0.M718sSPqeAhyqJbNnAVTCEnAcZxDTzAaMpHy0VQQAYk
