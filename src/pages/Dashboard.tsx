@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import InventoryForm from '@/components/inventory/InventoryForm';
 import { Address } from '@/types/inventory';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const StatCard = ({ title, value, icon, className }: { title: string; value: number; icon: React.ReactNode; className?: string }) => (
   <Card className={`glass-card animate-hover ${className}`}>
@@ -28,6 +29,7 @@ const Dashboard = () => {
   const { items, movements, getItemsByAddress } = useInventory();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
+  const isMobile = useIsMobile();
 
   const handleAddressSelect = (address: Address) => {
     setSelectedAddress(address);
@@ -43,35 +45,35 @@ const Dashboard = () => {
     <PageLayout>
       <div className="space-y-8 animate-fade-in">
         <div>
-          <h1 className="text-3xl font-semibold title-gradient">Inventory Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Monitor and manage your inventory at a glance</p>
+          <h1 className="text-3xl font-semibold title-gradient">Painel de Controle</h1>
+          <p className="text-muted-foreground mt-1">Monitore e gerencie seu estoque facilmente</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <StatCard 
-            title="Total Items" 
+            title="Total de Itens" 
             value={items.length} 
             icon={<BoxesIcon className="h-6 w-6" />} 
           />
           <StatCard 
-            title="Items with Quantity" 
+            title="Itens com Quantidade" 
             value={items.filter(item => item.quantity !== undefined).length} 
             icon={<PackageCheck className="h-6 w-6" />} 
           />
           <StatCard 
-            title="Recent Movements" 
+            title="Movimentações Recentes" 
             value={lastMovements.length} 
             icon={<Move className="h-6 w-6" />} 
           />
         </div>
 
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-medium text-inventory-orange">Warehouse Visualization</h2>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <h2 className="text-2xl font-medium text-inventory-orange">Visualização do Depósito</h2>
           
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-inventory-orange hover:bg-inventory-orange-dark">
-                Add New Item
+                Novo Item
               </Button>
             </DialogTrigger>
             <DialogContent className="glass-card">
@@ -93,7 +95,7 @@ const Dashboard = () => {
               <Card className="glass-card h-full">
                 <CardHeader>
                   <CardTitle className="text-inventory-orange text-xl">
-                    Location Details
+                    Detalhes da Localização
                   </CardTitle>
                   <CardDescription>
                     {`${selectedAddress.rua}-${selectedAddress.bloco}-${selectedAddress.altura}-${selectedAddress.lado}`}
@@ -102,14 +104,14 @@ const Dashboard = () => {
                 <CardContent>
                   {itemsAtAddress.length > 0 ? (
                     <div className="space-y-4">
-                      <p className="text-sm font-medium">{itemsAtAddress.length} items at this location</p>
+                      <p className="text-sm font-medium">{itemsAtAddress.length} {itemsAtAddress.length === 1 ? 'item' : 'itens'} nesta localização</p>
                       <div className="divide-y">
                         {itemsAtAddress.map(item => (
                           <div key={item.id} className="py-2">
                             <h4 className="font-medium">{item.name}</h4>
                             <p className="text-sm text-muted-foreground">SAP: {item.codSAP}</p>
                             <p className="text-sm">
-                              Quantity: {item.quantity !== undefined ? item.quantity : 'Not counted'}
+                              Quantidade: {item.quantity !== undefined ? item.quantity : 'Não contado'}
                             </p>
                           </div>
                         ))}
@@ -118,7 +120,7 @@ const Dashboard = () => {
                   ) : (
                     <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
                       <PackageSearch className="h-10 w-10 mb-2" />
-                      <p>No items at this location</p>
+                      <p>Nenhum item nesta localização</p>
                     </div>
                   )}
                 </CardContent>
@@ -127,16 +129,16 @@ const Dashboard = () => {
               <Card className="glass-card h-full">
                 <CardHeader>
                   <CardTitle className="text-inventory-orange text-xl">
-                    Location Details
+                    Detalhes da Localização
                   </CardTitle>
                   <CardDescription>
-                    Select a location to view details
+                    Selecione uma localização para ver detalhes
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
                     <PackageSearch className="h-10 w-10 mb-2" />
-                    <p>Click on a shelf in the visualization</p>
+                    <p>Clique em uma prateleira na visualização</p>
                   </div>
                 </CardContent>
               </Card>

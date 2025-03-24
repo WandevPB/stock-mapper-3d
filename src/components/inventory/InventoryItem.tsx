@@ -4,6 +4,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Button } from '@/components/ui/button';
 import { InventoryItem as InventoryItemType } from '@/types/inventory';
 import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { Edit2, Trash2, Move } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useInventory } from '@/context/InventoryContext';
@@ -24,6 +25,10 @@ const InventoryItem: React.FC<InventoryItemProps> = ({ item, onEdit, onMove }) =
     return `${rua}-${bloco}-${altura}-${lado}`;
   };
 
+  const formatRelativeTime = (date: Date) => {
+    return formatDistanceToNow(date, { addSuffix: true, locale: ptBR });
+  };
+
   return (
     <Card className="glass-card h-full transition-all duration-300 hover:shadow-md animate-hover">
       <CardHeader className="pb-2">
@@ -31,7 +36,7 @@ const InventoryItem: React.FC<InventoryItemProps> = ({ item, onEdit, onMove }) =
           <div>
             <CardTitle className="text-lg text-inventory-orange">{item.name}</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Added {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
+              Adicionado {formatRelativeTime(new Date(item.createdAt))}
             </p>
           </div>
           <Badge variant="outline" className="bg-inventory-orange/10 text-inventory-orange-dark">
@@ -42,13 +47,13 @@ const InventoryItem: React.FC<InventoryItemProps> = ({ item, onEdit, onMove }) =
       <CardContent className="pb-4">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Location:</span>
+            <span className="text-sm font-medium">Localização:</span>
             <span className="text-sm">{formatAddress(item)}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Quantity:</span>
+            <span className="text-sm font-medium">Quantidade:</span>
             <span className="text-sm">
-              {item.quantity !== undefined ? item.quantity : 'Not counted'}
+              {item.quantity !== undefined ? item.quantity : 'Não contado'}
             </span>
           </div>
         </div>
@@ -69,7 +74,7 @@ const InventoryItem: React.FC<InventoryItemProps> = ({ item, onEdit, onMove }) =
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Edit item</p>
+                  <p>Editar item</p>
                 </TooltipContent>
               </Tooltip>
             )}
@@ -87,7 +92,7 @@ const InventoryItem: React.FC<InventoryItemProps> = ({ item, onEdit, onMove }) =
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Move item</p>
+                  <p>Mover item</p>
                 </TooltipContent>
               </Tooltip>
             )}
@@ -105,18 +110,18 @@ const InventoryItem: React.FC<InventoryItemProps> = ({ item, onEdit, onMove }) =
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete Item</AlertDialogTitle>
+                <AlertDialogTitle>Excluir Item</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to delete "{item.name}"? This action cannot be undone.
+                  Tem certeza que deseja excluir "{item.name}"? Esta ação não pode ser desfeita.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
                 <AlertDialogAction 
                   onClick={() => deleteItem(item.id)} 
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
-                  Delete
+                  Excluir
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

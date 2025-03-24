@@ -11,15 +11,17 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = React.useState(false);
+  const isMobile = useIsMobile();
 
   const navItems = [
-    { path: '/', icon: <LayoutGrid size={18} />, label: 'Dashboard' },
-    { path: '/inventory', icon: <BoxesIcon size={18} />, label: 'Inventory' },
-    { path: '/movements', icon: <MoveIcon size={18} />, label: 'Movements' },
-    { path: '/search', icon: <SearchIcon size={18} />, label: 'Search' },
+    { path: '/', icon: <LayoutGrid size={18} />, label: 'Painel' },
+    { path: '/inventory', icon: <BoxesIcon size={18} />, label: 'Estoque' },
+    { path: '/movements', icon: <MoveIcon size={18} />, label: 'Movimentações' },
+    { path: '/search', icon: <SearchIcon size={18} />, label: 'Busca' },
   ];
 
   return (
@@ -28,8 +30,8 @@ const Navbar = () => {
         <div className="flex items-center gap-2">
           <NavLink to="/" className="flex items-center space-x-2">
             <BoxesIcon className="h-6 w-6 text-inventory-orange" />
-            <span className="font-semibold text-lg text-inventory-orange hidden sm:inline-block">
-              InventoryPro
+            <span className="font-semibold text-lg text-inventory-orange">
+              CDPB
             </span>
           </NavLink>
         </div>

@@ -11,6 +11,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import InventoryForm from '@/components/inventory/InventoryForm';
 import MoveItemForm from '@/components/inventory/MoveItemForm';
 import { InventoryItem as InventoryItemType } from '@/types/inventory';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Search = () => {
   const { searchItems } = useInventory();
@@ -20,6 +21,7 @@ const Search = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isMoveDialogOpen, setIsMoveDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItemType | null>(null);
+  const isMobile = useIsMobile();
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
@@ -66,21 +68,21 @@ const Search = () => {
     <PageLayout>
       <div className="space-y-8 animate-fade-in">
         <div>
-          <h1 className="text-3xl font-semibold title-gradient">Search Inventory</h1>
-          <p className="text-muted-foreground mt-1">Find items by name, SAP code, or location</p>
+          <h1 className="text-3xl font-semibold title-gradient">Busca de Itens</h1>
+          <p className="text-muted-foreground mt-1">Encontre itens por nome, código SAP ou localização</p>
         </div>
 
         <Card className="glass-card">
           <CardContent className="p-6">
-            <div className="flex items-center space-x-2">
-              <div className="relative flex-1">
+            <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2">
+              <div className="relative flex-1 w-full">
                 <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
-                  placeholder="Search by name, SAP code, or location (e.g., A-1-2-B)"
+                  placeholder="Busque por nome, código SAP ou localização (ex: A-1-2-B)"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  className="pl-10"
+                  className="pl-10 w-full"
                 />
                 {searchQuery && (
                   <Button
@@ -93,8 +95,11 @@ const Search = () => {
                   </Button>
                 )}
               </div>
-              <Button onClick={handleSearch} className="bg-inventory-orange hover:bg-inventory-orange-dark">
-                Search
+              <Button 
+                onClick={handleSearch} 
+                className="bg-inventory-orange hover:bg-inventory-orange-dark w-full sm:w-auto"
+              >
+                Buscar
               </Button>
             </div>
           </CardContent>
@@ -103,7 +108,7 @@ const Search = () => {
         {hasSearched && (
           <div className="space-y-4">
             <h2 className="text-xl font-medium">
-              Search Results {searchResults.length > 0 && `(${searchResults.length})`}
+              Resultados da Busca {searchResults.length > 0 && `(${searchResults.length})`}
             </h2>
             
             {searchResults.length > 0 ? (
@@ -121,9 +126,9 @@ const Search = () => {
               <Card className="glass-card">
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <SearchIcon className="h-12 w-12 text-muted-foreground opacity-20 mb-4" />
-                  <h3 className="text-lg font-medium">No items found</h3>
+                  <h3 className="text-lg font-medium">Nenhum item encontrado</h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Try a different search term or check your spelling
+                    Tente um termo de busca diferente ou verifique a ortografia
                   </p>
                 </CardContent>
               </Card>
