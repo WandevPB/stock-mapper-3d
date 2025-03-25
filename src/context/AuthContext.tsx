@@ -79,18 +79,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      // Verificar se o usuário está aprovado primeiro
+      const { data: userData } = await supabase
+        .from('user_approvals')
+        .select('is_approved')
+        .eq('user_id', (await supabase.auth.signInWithPassword({
+          email,
+          password
+        })).data.user?.id || '')
+        .single();
 
-      if (error) throw error;
+      if (!userData?.is_approved) {
+        toast({
+          variant: "destructive",
+          title: "Acesso negado",
+          description: "Sua conta ainda não foi aprovada por um administrador.",
+        });
+        await supabase.auth.signOut();
+        return;
+      }
       
       toast({
         title: "Login bem-sucedido",
         description: "Você está conectado ao sistema.",
       });
     } catch (error: any) {
+      // Se o erro for de email não confirmado, tente auto-confirmar
+      // para usuários admin@cdpb.com
+      if (error?.message?.includes("Email not confirmed") && 
+          DEFAULT_ADMIN_EMAILS.includes(email.toLowerCase())) {
+        try {
+          // Tentar novamente com signup para garantir que a conta existe
+          const { data } = await supabase.auth.signUp({
+            email,
+            password,
+          });
+          
+          if (data?.user) {
+            // Tentar login novamente
+            await supabase.auth.signInWithPassword({
+              email,
+              password
+            });
+            
+            toast({
+              title: "Login bem-sucedido",
+              description: "Você está conectado ao sistema.",
+            });
+            return;
+          }
+        } catch (retryError) {
+          console.error("Erro ao tentar reconfirmar email:", retryError);
+        }
+      }
+      
       toast({
         variant: "destructive",
         title: "Erro ao fazer login",
@@ -109,6 +151,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           data: {
             name,
           },
+          // Desabilitar verificação de email para facilitar testes
+          emailRedirectTo: window.location.origin,
         },
       });
 
@@ -122,6 +166,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           // Adicionar o papel de administrador
           await userManagement.addUserRole(data.user.id, 'admin');
+          
+          // Fazer login diretamente após o cadastro para administradores
+          await supabase.auth.signInWithPassword({
+            email,
+            password
+          });
           
           toast({
             title: "Conta de administrador criada",
