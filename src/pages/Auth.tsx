@@ -6,11 +6,12 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { BoxesIcon, LogIn, UserPlus } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -146,6 +147,13 @@ const Auth = () => {
                   </form>
                 </Form>
               </CardContent>
+              <CardFooter className="flex justify-center">
+                <Alert>
+                  <AlertDescription className="text-sm text-center">
+                    Use admin@cdpb.com / senha123 para conta de admin
+                  </AlertDescription>
+                </Alert>
+              </CardFooter>
             </Card>
           </TabsContent>
 
@@ -208,6 +216,13 @@ const Auth = () => {
                   </form>
                 </Form>
               </CardContent>
+              <CardFooter className="flex justify-center">
+                <Alert>
+                  <AlertDescription className="text-sm text-center">
+                    Cadastre-se com email admin@cdpb.com para ter privilégios de administrador automaticamente
+                  </AlertDescription>
+                </Alert>
+              </CardFooter>
             </Card>
           </TabsContent>
         </Tabs>

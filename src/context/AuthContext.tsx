@@ -16,6 +16,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Lista de emails que devem ser administradores por padrão
+const DEFAULT_ADMIN_EMAILS = ['admin@cdpb.com'];
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -29,7 +32,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        checkUserAdmin(session?.user?.id);
+        if (session?.user) {
+          checkUserAdmin(session.user.id);
+        } else {
+          setIsAdmin(false);
+        }
       }
     );
 
@@ -37,12 +44,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      checkUserAdmin(session?.user?.id);
+      if (session?.user) {
+        checkUserAdmin(session.user.id);
+      }
       setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Função para verificar se o usuário deve ser admin padrão
+  const isDefaultAdmin = (email: string): boolean => {
+    return DEFAULT_ADMIN_EMAILS.includes(email.toLowerCase());
+  };
 
   const checkUserAdmin = async (userId: string | undefined) => {
     if (!userId) {
@@ -100,10 +114,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
       
-      toast({
-        title: "Cadastro solicitado",
-        description: "Sua solicitação foi enviada para aprovação pelo administrador.",
-      });
+      // Se o cadastro for bem-sucedido e o email for um dos admins padrão
+      if (data?.user && isDefaultAdmin(email)) {
+        try {
+          // Aprovar o usuário automaticamente
+          await userManagement.setUserApproval(data.user.id, true);
+          
+          // Adicionar o papel de administrador
+          await userManagement.addUserRole(data.user.id, 'admin');
+          
+          toast({
+            title: "Conta de administrador criada",
+            description: "Seu cadastro foi aprovado automaticamente com privilégios de administrador.",
+          });
+        } catch (roleError) {
+          console.error('Erro ao configurar papel de administrador:', roleError);
+        }
+      } else {
+        toast({
+          title: "Cadastro solicitado",
+          description: "Sua solicitação foi enviada para aprovação pelo administrador.",
+        });
+      }
     } catch (error: any) {
       toast({
         variant: "destructive",
