@@ -7,15 +7,19 @@ import {
   MoveIcon, 
   SearchIcon,
   Menu,
-  X
+  X,
+  Shield,
+  LogOut
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/context/AuthContext';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = React.useState(false);
   const isMobile = useIsMobile();
+  const { user, isAdmin, signOut } = useAuth();
 
   const navItems = [
     { path: '/', icon: <LayoutGrid size={18} />, label: 'Painel' },
@@ -23,6 +27,15 @@ const Navbar = () => {
     { path: '/movements', icon: <MoveIcon size={18} />, label: 'Movimentações' },
     { path: '/search', icon: <SearchIcon size={18} />, label: 'Busca' },
   ];
+
+  // Add admin route if user is admin
+  if (isAdmin) {
+    navItems.push({ path: '/admin', icon: <Shield size={18} />, label: 'Admin' });
+  }
+
+  const handleLogout = async () => {
+    await signOut();
+  };
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -55,6 +68,18 @@ const Navbar = () => {
               <span>{item.label}</span>
             </NavLink>
           ))}
+
+          {user && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleLogout} 
+              className="text-sm font-medium text-muted-foreground hover:text-foreground"
+            >
+              <LogOut size={18} className="mr-1" />
+              <span>Sair</span>
+            </Button>
+          )}
         </nav>
 
         {/* Mobile Menu Button */}
@@ -90,6 +115,20 @@ const Navbar = () => {
                     <span>{item.label}</span>
                   </NavLink>
                 ))}
+                
+                {user && (
+                  <Button 
+                    variant="ghost"
+                    onClick={() => {
+                      handleLogout();
+                      setIsOpen(false);
+                    }}
+                    className="flex items-center justify-start gap-2 py-2 h-auto text-muted-foreground hover:text-foreground"
+                  >
+                    <LogOut size={18} />
+                    <span>Sair</span>
+                  </Button>
+                )}
               </nav>
             </div>
           </div>
