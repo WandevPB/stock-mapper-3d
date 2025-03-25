@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, userManagement, UserRole, UserApproval } from '@/integrations/supabase/client';
 import PageLayout from '@/components/layout/PageLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -55,23 +55,19 @@ const Admin = () => {
       
       if (authError) throw authError;
       
-      // Get approved users and admins
-      const { data: approvedUsers, error: approvedError } = await supabase
-        .from('user_approvals')
-        .select('user_id, is_approved');
+      // Get approved users 
+      const { data: approvedUsers, error: approvedError } = await userManagement.listUserApprovals();
         
       if (approvedError) throw approvedError;
       
-      const { data: adminUsers, error: adminError } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'admin');
+      // Get admin users
+      const { data: adminUsers, error: adminError } = await userManagement.listUsersWithRole('admin');
         
       if (adminError) throw adminError;
       
       // Map to a more usable format
-      const approvedMap = new Map(approvedUsers?.map(u => [u.user_id, u.is_approved]));
-      const adminMap = new Set(adminUsers?.map(u => u.user_id));
+      const approvedMap = new Map(approvedUsers?.map(u => [u.user_id, u.is_approved]) || []);
+      const adminMap = new Set(adminUsers?.map(u => u.user_id) || []);
       
       const formattedUsers = authUsers.users.map(user => ({
         id: user.id,
@@ -97,9 +93,7 @@ const Admin = () => {
 
   const approveUser = async (userId: string) => {
     try {
-      const { error } = await supabase
-        .from('user_approvals')
-        .upsert({ user_id: userId, is_approved: true });
+      const { error } = await userManagement.setUserApproval(userId, true);
         
       if (error) throw error;
       
@@ -121,9 +115,7 @@ const Admin = () => {
 
   const removeApproval = async (userId: string) => {
     try {
-      const { error } = await supabase
-        .from('user_approvals')
-        .upsert({ user_id: userId, is_approved: false });
+      const { error } = await userManagement.setUserApproval(userId, false);
         
       if (error) throw error;
       
@@ -147,11 +139,7 @@ const Admin = () => {
     try {
       if (isCurrentlyAdmin) {
         // Remove admin role
-        const { error } = await supabase
-          .from('user_roles')
-          .delete()
-          .eq('user_id', userId)
-          .eq('role', 'admin');
+        const { error } = await userManagement.removeUserRole(userId, 'admin');
           
         if (error) throw error;
         
@@ -161,9 +149,7 @@ const Admin = () => {
         });
       } else {
         // Add admin role
-        const { error } = await supabase
-          .from('user_roles')
-          .insert({ user_id: userId, role: 'admin' });
+        const { error } = await userManagement.addUserRole(userId, 'admin');
           
         if (error) throw error;
         

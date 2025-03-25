@@ -16,3 +16,78 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+// Helper types for the custom tables
+export type UserApproval = {
+  user_id: string;
+  is_approved: boolean;
+  created_at: string;
+}
+
+export type UserRole = {
+  id: string;
+  user_id: string;
+  role: string;
+  created_at: string;
+}
+
+// Custom typed functions for user management
+export const userManagement = {
+  // Get user approval status
+  getUserApproval: async (userId: string) => {
+    return supabase
+      .from('user_approvals')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+  },
+  
+  // Set user approval status
+  setUserApproval: async (userId: string, isApproved: boolean) => {
+    return supabase
+      .from('user_approvals')
+      .upsert({ user_id: userId, is_approved: isApproved })
+      .select()
+      .single();
+  },
+  
+  // Get user roles
+  getUserRoles: async (userId: string) => {
+    return supabase
+      .from('user_roles')
+      .select('*')
+      .eq('user_id', userId);
+  },
+  
+  // Add user role
+  addUserRole: async (userId: string, role: string) => {
+    return supabase
+      .from('user_roles')
+      .insert({ user_id: userId, role })
+      .select();
+  },
+  
+  // Remove user role
+  removeUserRole: async (userId: string, role: string) => {
+    return supabase
+      .from('user_roles')
+      .delete()
+      .eq('user_id', userId)
+      .eq('role', role);
+  },
+  
+  // List all user approvals
+  listUserApprovals: async () => {
+    return supabase
+      .from('user_approvals')
+      .select('*');
+  },
+  
+  // List all users with a specific role
+  listUsersWithRole: async (role: string) => {
+    return supabase
+      .from('user_roles')
+      .select('*')
+      .eq('role', role);
+  }
+}

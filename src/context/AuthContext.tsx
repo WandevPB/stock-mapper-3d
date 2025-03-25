@@ -1,7 +1,7 @@
 
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, userManagement } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
@@ -51,14 +51,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('role', 'admin')
-        .single();
-
-      setIsAdmin(!!data);
+      const { data, error } = await userManagement.getUserRoles(userId);
+      
+      if (error) throw error;
+      
+      // Check if user has admin role
+      setIsAdmin(data?.some(role => role.role === 'admin') || false);
     } catch (error) {
       console.error('Error checking admin role:', error);
       setIsAdmin(false);
