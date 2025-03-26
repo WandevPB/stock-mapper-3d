@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, userManagement } from '@/integrations/supabase/client';
@@ -79,24 +78,79 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Verificar se o usuário está aprovado primeiro
-      const { data: userData } = await supabase
-        .from('user_approvals')
-        .select('is_approved')
-        .eq('user_id', (await supabase.auth.signInWithPassword({
-          email,
-          password
-        })).data.user?.id || '')
-        .single();
+      // Primeiro tenta fazer login
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
 
-      if (!userData?.is_approved) {
-        toast({
-          variant: "destructive",
-          title: "Acesso negado",
-          description: "Sua conta ainda não foi aprovada por um administrador.",
-        });
-        await supabase.auth.signOut();
-        return;
+      if (error) {
+        // Se o erro for de email não confirmado para admin, tente auto-confirmar
+        if (error.message.includes("Email not confirmed") && 
+            isDefaultAdmin(email)) {
+          try {
+            // Tenta cadastrar novamente para garantir que a conta existe
+            await supabase.auth.signUp({
+              email,
+              password,
+              options: {
+                data: { name: "Administrador" },
+              }
+            });
+            
+            // Tenta login novamente
+            const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
+              email,
+              password
+            });
+            
+            if (retryError) throw retryError;
+            
+            toast({
+              title: "Login bem-sucedido",
+              description: "Você está conectado ao sistema como administrador.",
+            });
+            return;
+          } catch (retryError) {
+            console.error("Erro ao tentar reconfirmar email:", retryError);
+            throw retryError;
+          }
+        }
+        throw error;
+      }
+      
+      // Se não for admin padrão, verifica aprovação
+      if (!isDefaultAdmin(email)) {
+        try {
+          // Verificar se o usuário está aprovado
+          const { data: userData } = await supabase
+            .from('user_approvals')
+            .select('is_approved')
+            .eq('user_id', data.user?.id || '')
+            .single();
+
+          if (!userData?.is_approved) {
+            toast({
+              variant: "destructive",
+              title: "Acesso negado",
+              description: "Sua conta ainda não foi aprovada por um administrador.",
+            });
+            await supabase.auth.signOut();
+            return;
+          }
+        } catch (approvalError) {
+          console.error("Erro ao verificar aprovação:", approvalError);
+          // Se não conseguir verificar aprovação para usuário normal, nega acesso
+          if (!isDefaultAdmin(email)) {
+            await supabase.auth.signOut();
+            toast({
+              variant: "destructive",
+              title: "Erro de verificação",
+              description: "Não foi possível verificar seu status de aprovação.",
+            });
+            return;
+          }
+        }
       }
       
       toast({
@@ -104,35 +158,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: "Você está conectado ao sistema.",
       });
     } catch (error: any) {
-      // Se o erro for de email não confirmado, tente auto-confirmar
-      // para usuários admin@cdpb.com
-      if (error?.message?.includes("Email not confirmed") && 
-          DEFAULT_ADMIN_EMAILS.includes(email.toLowerCase())) {
-        try {
-          // Tentar novamente com signup para garantir que a conta existe
-          const { data } = await supabase.auth.signUp({
-            email,
-            password,
-          });
-          
-          if (data?.user) {
-            // Tentar login novamente
-            await supabase.auth.signInWithPassword({
-              email,
-              password
-            });
-            
-            toast({
-              title: "Login bem-sucedido",
-              description: "Você está conectado ao sistema.",
-            });
-            return;
-          }
-        } catch (retryError) {
-          console.error("Erro ao tentar reconfirmar email:", retryError);
-        }
-      }
-      
       toast({
         variant: "destructive",
         title: "Erro ao fazer login",
@@ -151,7 +176,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           data: {
             name,
           },
-          // Desabilitar verificação de email para facilitar testes
+          // Definir URL de redirecionamento para confirmação de email
           emailRedirectTo: window.location.origin,
         },
       });
