@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -11,6 +12,13 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { 
+  Dialog,
+  DialogContent, 
+  DialogHeader,
+  DialogTitle,
+  DialogDescription 
+} from '@/components/ui/dialog';
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -31,6 +39,8 @@ const Auth = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('login');
+  const [showHelp, setShowHelp] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -57,11 +67,13 @@ const Auth = () => {
 
   const onLoginSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
+    setLoginError(null);
     try {
       await signIn(data.email, data.password);
       navigate('/');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error signing in:', error);
+      setLoginError(error.message || 'Erro ao fazer login');
     } finally {
       setIsLoading(false);
     }
@@ -141,6 +153,11 @@ const Auth = () => {
                         </FormItem>
                       )}
                     />
+                    {loginError && (
+                      <Alert variant="destructive">
+                        <AlertDescription>{loginError}</AlertDescription>
+                      </Alert>
+                    )}
                     <Button
                       type="submit"
                       className="w-full bg-inventory-orange hover:bg-inventory-orange-dark"
@@ -164,6 +181,14 @@ const Auth = () => {
                   className="w-full text-xs"
                 >
                   Preencher credenciais de admin
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowHelp(true)}
+                  className="text-xs text-muted-foreground"
+                >
+                  Problemas com login?
                 </Button>
               </CardFooter>
             </Card>
@@ -239,6 +264,35 @@ const Auth = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Dialog de ajuda para login */}
+      <Dialog open={showHelp} onOpenChange={setShowHelp}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ajuda com Login</DialogTitle>
+            <DialogDescription>
+              Se você está tendo problemas para fazer login:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-medium">Para conta de administrador:</h3>
+              <p className="text-sm mt-1">
+                Use o email <strong>admin@cdpb.com</strong> e senha <strong>senha123</strong>. 
+                Este usuário tem acesso completo ao sistema sem necessidade de aprovação.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-medium">Para usuários regulares:</h3>
+              <p className="text-sm mt-1">
+                Após o cadastro, um administrador precisa aprovar seu acesso. 
+                Contacte o administrador do sistema para obter aprovação.
+              </p>
+            </div>
+            <Button onClick={() => setShowHelp(false)} className="w-full">Entendi</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

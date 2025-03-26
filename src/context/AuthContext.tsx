@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, userManagement } from '@/integrations/supabase/client';
@@ -64,6 +65,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
+      // Também verifica o email do usuário para identificar admin padrão
+      const { data: userData } = await supabase.auth.admin.getUserById(userId);
+      
+      if (userData?.user && isDefaultAdmin(userData.user.email || '')) {
+        setIsAdmin(true);
+        return;
+      }
+      
       const { data, error } = await userManagement.getUserRoles(userId);
       
       if (error) throw error;
@@ -72,55 +81,87 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsAdmin(data?.some(role => role.role === 'admin') || false);
     } catch (error) {
       console.error('Error checking admin role:', error);
+      // Se não conseguir verificar papéis, mas for email de admin padrão, considera admin
+      try {
+        const { data: userData } = await supabase.auth.admin.getUserById(userId);
+        if (userData?.user && isDefaultAdmin(userData.user.email || '')) {
+          setIsAdmin(true);
+          return;
+        }
+      } catch (secondError) {
+        console.error('Error getting user email:', secondError);
+      }
       setIsAdmin(false);
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Primeiro tenta fazer login
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) {
-        // Se o erro for de email não confirmado para admin, tente auto-confirmar
-        if (error.message.includes("Email not confirmed") && 
-            isDefaultAdmin(email)) {
-          try {
-            // Tenta cadastrar novamente para garantir que a conta existe
-            await supabase.auth.signUp({
-              email,
-              password,
-              options: {
-                data: { name: "Administrador" },
-              }
-            });
-            
-            // Tenta login novamente
-            const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
-              email,
-              password
-            });
-            
-            if (retryError) throw retryError;
-            
+      // Se for admin padrão, primeiro tenta confirmar o email se necessário
+      if (isDefaultAdmin(email)) {
+        // Tenta login direto primeiro
+        try {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password
+          });
+          
+          if (!error) {
             toast({
               title: "Login bem-sucedido",
               description: "Você está conectado ao sistema como administrador.",
             });
             return;
-          } catch (retryError) {
-            console.error("Erro ao tentar reconfirmar email:", retryError);
-            throw retryError;
           }
+          
+          // Se o erro não for de email não confirmado, propaga o erro
+          if (!error.message.includes("Email not confirmed")) {
+            throw error;
+          }
+          
+          console.log("Admin email not confirmed, attempting to fix...");
+          
+          // Tenta cadastrar novamente para garantir que a conta existe
+          await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: { name: "Administrador" },
+            }
+          });
+          
+          // Tenta login novamente
+          const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
+            email,
+            password
+          });
+          
+          if (retryError) throw retryError;
+          
+          toast({
+            title: "Login bem-sucedido",
+            description: "Você está conectado ao sistema como administrador.",
+          });
+          return;
+        } catch (adminError: any) {
+          console.error("Erro com login de admin:", adminError);
+          toast({
+            variant: "destructive",
+            title: "Erro ao fazer login",
+            description: adminError.message || "Erro ao processar login de administrador.",
+          });
+          throw adminError;
         }
-        throw error;
-      }
-      
-      // Se não for admin padrão, verifica aprovação
-      if (!isDefaultAdmin(email)) {
+      } else {
+        // Fluxo normal para usuários não-admin
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (error) throw error;
+        
+        // Se não for admin padrão, verifica aprovação
         try {
           // Verificar se o usuário está aprovado
           const { data: userData } = await supabase
@@ -141,22 +182,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (approvalError) {
           console.error("Erro ao verificar aprovação:", approvalError);
           // Se não conseguir verificar aprovação para usuário normal, nega acesso
-          if (!isDefaultAdmin(email)) {
-            await supabase.auth.signOut();
-            toast({
-              variant: "destructive",
-              title: "Erro de verificação",
-              description: "Não foi possível verificar seu status de aprovação.",
-            });
-            return;
-          }
+          await supabase.auth.signOut();
+          toast({
+            variant: "destructive",
+            title: "Erro de verificação",
+            description: "Não foi possível verificar seu status de aprovação.",
+          });
+          return;
         }
+        
+        toast({
+          title: "Login bem-sucedido",
+          description: "Você está conectado ao sistema.",
+        });
       }
-      
-      toast({
-        title: "Login bem-sucedido",
-        description: "Você está conectado ao sistema.",
-      });
     } catch (error: any) {
       toast({
         variant: "destructive",
