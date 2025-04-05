@@ -1,65 +1,39 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { BoxesIcon, LogIn, UserPlus } from 'lucide-react';
+import { BoxesIcon, LogIn } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Dialog,
-  DialogContent, 
-  DialogHeader,
-  DialogTitle,
-  DialogDescription 
-} from '@/components/ui/dialog';
 
 const loginSchema = z.object({
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
-});
-
-const registerSchema = z.object({
-  name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
+  username: z.string().min(1, 'Nome de usuário é obrigatório'),
+  password: z.string().min(1, 'Senha é obrigatória'),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
-type RegisterFormValues = z.infer<typeof registerSchema>;
 
 const Auth = () => {
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, user } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('login');
-  const [showHelp, setShowHelp] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: '',
+      username: '',
       password: '',
     },
   });
 
-  const registerForm = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      name: '',
-      email: '',
-      password: '',
-    },
-  });
-
-  React.useEffect(() => {
+  useEffect(() => {
     if (user) {
       navigate('/');
     }
@@ -69,7 +43,7 @@ const Auth = () => {
     setIsLoading(true);
     setLoginError(null);
     try {
-      await signIn(data.email, data.password);
+      await signIn(data.username, data.password);
       navigate('/');
     } catch (error: any) {
       console.error('Error signing in:', error);
@@ -79,22 +53,9 @@ const Auth = () => {
     }
   };
 
-  const onRegisterSubmit = async (data: RegisterFormValues) => {
-    setIsLoading(true);
-    try {
-      await signUp(data.email, data.password, data.name);
-      setActiveTab('login');
-      registerForm.reset();
-    } catch (error) {
-      console.error('Error signing up:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const fillAdminCredentials = () => {
-    loginForm.setValue('email', 'admin@cdpb.com');
-    loginForm.setValue('password', 'senha123');
+    loginForm.setValue('username', 'admin');
+    loginForm.setValue('password', 'admin');
   };
 
   return (
@@ -106,193 +67,72 @@ const Auth = () => {
           <p className="text-xl font-medium">CDPB</p>
         </div>
 
-        <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login" disabled={isLoading}>
-              <LogIn className="mr-2 h-4 w-4" />
-              Entrar
-            </TabsTrigger>
-            <TabsTrigger value="register" disabled={isLoading}>
-              <UserPlus className="mr-2 h-4 w-4" />
-              Cadastrar
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="login">
-            <Card>
-              <CardHeader>
-                <CardTitle>Login</CardTitle>
-                <CardDescription>Acesse sua conta para gerenciar o estoque</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...loginForm}>
-                  <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
-                    <FormField
-                      control={loginForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input placeholder="seu@email.com" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={loginForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Senha</FormLabel>
-                          <FormControl>
-                            <Input type="password" placeholder="******" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    {loginError && (
-                      <Alert variant="destructive">
-                        <AlertDescription>{loginError}</AlertDescription>
-                      </Alert>
-                    )}
-                    <Button
-                      type="submit"
-                      className="w-full bg-inventory-orange hover:bg-inventory-orange-dark"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? "Entrando..." : "Entrar"}
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-              <CardFooter className="flex flex-col justify-center space-y-2">
-                <Alert>
-                  <AlertDescription className="text-sm text-center">
-                    Use admin@cdpb.com / senha123 para conta de admin
-                  </AlertDescription>
-                </Alert>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={fillAdminCredentials}
-                  className="w-full text-xs"
-                >
-                  Preencher credenciais de admin
-                </Button>
+        <Card>
+          <CardHeader>
+            <CardTitle>Login</CardTitle>
+            <CardDescription>Acesse sua conta para gerenciar o estoque</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...loginForm}>
+              <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
+                <FormField
+                  control={loginForm.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Usuário</FormLabel>
+                      <FormControl>
+                        <Input placeholder="admin" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={loginForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Senha</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="******" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {loginError && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{loginError}</AlertDescription>
+                  </Alert>
+                )}
                 <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowHelp(true)}
-                  className="text-xs text-muted-foreground"
+                  type="submit"
+                  className="w-full bg-inventory-orange hover:bg-inventory-orange-dark"
+                  disabled={isLoading}
                 >
-                  Problemas com login?
+                  {isLoading ? "Entrando..." : "Entrar"}
                 </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="register">
-            <Card>
-              <CardHeader>
-                <CardTitle>Cadastro</CardTitle>
-                <CardDescription>Solicite acesso ao sistema de estoque</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...registerForm}>
-                  <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
-                    <FormField
-                      control={registerForm.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nome Completo</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Seu nome" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={registerForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input placeholder="seu@email.com" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={registerForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Senha</FormLabel>
-                          <FormControl>
-                            <Input type="password" placeholder="******" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button
-                      type="submit"
-                      variant="outline"
-                      className="w-full"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? "Enviando..." : "Solicitar Cadastro"}
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-              <CardFooter className="flex justify-center">
-                <Alert>
-                  <AlertDescription className="text-sm text-center">
-                    Cadastre-se com email admin@cdpb.com para ter privilégios de administrador automaticamente
-                  </AlertDescription>
-                </Alert>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              </form>
+            </Form>
+          </CardContent>
+          <CardFooter className="flex flex-col justify-center space-y-2">
+            <Alert>
+              <AlertDescription className="text-sm text-center">
+                Use admin / admin para entrar como administrador
+              </AlertDescription>
+            </Alert>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={fillAdminCredentials}
+              className="w-full text-xs"
+            >
+              Preencher credenciais de admin
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
-
-      {/* Dialog de ajuda para login */}
-      <Dialog open={showHelp} onOpenChange={setShowHelp}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Ajuda com Login</DialogTitle>
-            <DialogDescription>
-              Se você está tendo problemas para fazer login:
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-medium">Para conta de administrador:</h3>
-              <p className="text-sm mt-1">
-                Use o email <strong>admin@cdpb.com</strong> e senha <strong>senha123</strong>. 
-                Este usuário tem acesso completo ao sistema sem necessidade de aprovação.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-medium">Para usuários regulares:</h3>
-              <p className="text-sm mt-1">
-                Após o cadastro, um administrador precisa aprovar seu acesso. 
-                Contacte o administrador do sistema para obter aprovação.
-              </p>
-            </div>
-            <Button onClick={() => setShowHelp(false)} className="w-full">Entendi</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
