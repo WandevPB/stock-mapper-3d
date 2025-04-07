@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { InventoryItem, Address, Movement } from '@/types/inventory';
 import { SupabaseService } from '@/services/SupabaseService';
-import { toast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface InventoryContextType {
@@ -10,7 +10,7 @@ interface InventoryContextType {
   movements: Movement[];
   isLoading: boolean;
   isError: boolean;
-  addItem: (item: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  addItem: (item: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>) => Promise<InventoryItem>;
   updateItem: (id: string, item: Partial<Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>>) => Promise<void>;
   deleteItem: (id: string) => Promise<void>;
   moveItem: (id: string, newAddress: Address, quantity?: number) => Promise<void>;
@@ -22,6 +22,7 @@ const InventoryContext = createContext<InventoryContextType | undefined>(undefin
 
 export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // Fetch inventory items
   const { 
@@ -129,8 +130,24 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const isLoading = isItemsLoading || isMovementsLoading;
   const isError = isItemsError || isMovementsError;
 
-  const addItem = async (newItem: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addItem = async (newItem: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<InventoryItem> => {
+    // Create a temporary ID for local use
+    const tempId = `temp_${Date.now()}`;
+    const now = new Date();
+    
+    // Create a complete item with temporary ID and timestamps
+    const completeItem: InventoryItem = {
+      id: tempId,
+      ...newItem,
+      createdAt: now,
+      updatedAt: now
+    };
+    
+    // Use mutation to add the item
     await addItemMutation.mutateAsync(newItem);
+    
+    // Return the complete item for use in the UI and for Google Sheets
+    return completeItem;
   };
 
   const updateItem = async (id: string, updates: Partial<Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>>) => {

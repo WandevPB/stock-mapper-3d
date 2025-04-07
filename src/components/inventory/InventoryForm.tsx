@@ -73,7 +73,7 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
       
       if (isEditing && item) {
         // Update in local state
-        updateItem(item.id, itemData);
+        await updateItem(item.id, itemData);
         
         // Update in Google Sheets
         const updatedItem = { 
@@ -97,23 +97,25 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
           });
         }
       } else {
-        // Add to local state
-        const newItem = addItem(itemData);
+        // Add to local state first
+        const newItem = await addItem(itemData);
         
         // Add to Google Sheets
-        success = await SheetsService.addItemToSheet(newItem);
-        
-        if (success) {
-          toast({
-            title: "Item adicionado",
-            description: "Item adicionado com sucesso ao inventário e à planilha.",
-          });
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Erro ao adicionar na planilha",
-            description: "O item foi adicionado localmente, mas houve um erro ao sincronizar com a planilha.",
-          });
+        if (newItem) {
+          success = await SheetsService.addItemToSheet(newItem);
+          
+          if (success) {
+            toast({
+              title: "Item adicionado",
+              description: "Item adicionado com sucesso ao inventário e à planilha.",
+            });
+          } else {
+            toast({
+              variant: "destructive",
+              title: "Erro ao adicionar na planilha",
+              description: "O item foi adicionado localmente, mas houve um erro ao sincronizar com a planilha.",
+            });
+          }
         }
       }
 

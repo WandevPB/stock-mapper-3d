@@ -13,7 +13,7 @@ import { useInventory } from '@/context/InventoryContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { SheetsService } from '@/services/SheetsService';
+import { SheetsService, SHEET_API_URL } from '@/services/SheetsService';
 import { useToast } from '@/hooks/use-toast';
 
 const Inventory = () => {
@@ -28,7 +28,7 @@ const Inventory = () => {
 
   useEffect(() => {
     // Check if Google Sheets API URL has been configured
-    const isConfigured = !SheetsService.SHEET_API_URL.includes('YOUR_SCRIPT_ID');
+    const isConfigured = !SHEET_API_URL.includes('YOUR_SCRIPT_ID');
     setSheetsConfigured(isConfigured);
     
     if (!isConfigured) {
