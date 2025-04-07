@@ -1,7 +1,7 @@
 import { InventoryItem } from '@/types/inventory';
 
-// Google Sheets API endpoint - This will be provided by your Google Apps Script
-export const SHEET_API_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+// Google Sheets API endpoint - This is your Google Apps Script URL
+export const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbwc2qV8aqUnwTMrk-gHUIwRHGkuRrs05JR8WDQJQTbJlBKr-CAxLOIx9H23BNU7Hqk38Q/exec';
 
 export const SheetsService = {
   // Add item to Google Sheets
