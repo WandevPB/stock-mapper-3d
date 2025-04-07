@@ -6,6 +6,15 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://hssyqauktqcizwblqhnc.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhzc3lxYXVrdHFjaXp3YmxxaG5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI4MzEzNDEsImV4cCI6MjA1ODQwNzM0MX0.M718sSPqeAhyqJbNnAVTCEnAcZxDTzAaMpHy0VQQAYk";
 
+// Estado offline local para desenvolvimento e modo fallback
+export let isOfflineMode = false;
+export const offlineStorage = {
+  inventory: [] as any[],
+  movements: [] as any[],
+  addresses: [] as any[],
+  lastConnectionAttempt: 0
+};
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
@@ -16,6 +25,36 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+// Função para verificar a conectividade com o Supabase
+export const checkSupabaseConnection = async (): Promise<boolean> => {
+  try {
+    // Verificar se a última tentativa foi há menos de 10 segundos
+    const now = Date.now();
+    if (now - offlineStorage.lastConnectionAttempt < 10000) {
+      return !isOfflineMode;
+    }
+    
+    offlineStorage.lastConnectionAttempt = now;
+    
+    // Tentativa simples de consulta para verificar conexão
+    const { error } = await supabase.from('addresses').select('count', { count: 'exact', head: true });
+    
+    // Se não houver erro, estamos conectados
+    isOfflineMode = !!error;
+    return !isOfflineMode;
+  } catch (e) {
+    console.error("Erro ao verificar conexão com Supabase:", e);
+    isOfflineMode = true;
+    return false;
+  }
+};
+
+// Verificar a conexão imediatamente e depois a cada 30 segundos
+checkSupabaseConnection();
+if (typeof window !== 'undefined') {
+  setInterval(checkSupabaseConnection, 30000);
+}
 
 // Helper types for the custom tables
 export type UserApproval = {
@@ -35,59 +74,129 @@ export type UserRole = {
 export const userManagement = {
   // Get user approval status
   getUserApproval: async (userId: string) => {
-    return supabase
-      .from('user_approvals')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+    try {
+      await checkSupabaseConnection();
+      if (isOfflineMode) {
+        return { data: null, error: new Error("Modo offline ativo. Não foi possível conectar ao Supabase.") };
+      }
+      
+      return supabase
+        .from('user_approvals')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+    } catch (error) {
+      console.error("Erro ao obter aprovação do usuário:", error);
+      return { data: null, error };
+    }
   },
   
   // Set user approval status
   setUserApproval: async (userId: string, isApproved: boolean) => {
-    return supabase
-      .from('user_approvals')
-      .upsert({ user_id: userId, is_approved: isApproved })
-      .select()
-      .single();
+    try {
+      await checkSupabaseConnection();
+      if (isOfflineMode) {
+        return { data: null, error: new Error("Modo offline ativo. Não foi possível conectar ao Supabase.") };
+      }
+      
+      return supabase
+        .from('user_approvals')
+        .upsert({ user_id: userId, is_approved: isApproved })
+        .select()
+        .single();
+    } catch (error) {
+      console.error("Erro ao definir aprovação do usuário:", error);
+      return { data: null, error };
+    }
   },
   
   // Get user roles
   getUserRoles: async (userId: string) => {
-    return supabase
-      .from('user_roles')
-      .select('*')
-      .eq('user_id', userId);
+    try {
+      await checkSupabaseConnection();
+      if (isOfflineMode) {
+        return { data: [], error: new Error("Modo offline ativo. Não foi possível conectar ao Supabase.") };
+      }
+      
+      return supabase
+        .from('user_roles')
+        .select('*')
+        .eq('user_id', userId);
+    } catch (error) {
+      console.error("Erro ao obter roles do usuário:", error);
+      return { data: [], error };
+    }
   },
   
   // Add user role
   addUserRole: async (userId: string, role: string) => {
-    return supabase
-      .from('user_roles')
-      .insert({ user_id: userId, role })
-      .select();
+    try {
+      await checkSupabaseConnection();
+      if (isOfflineMode) {
+        return { data: null, error: new Error("Modo offline ativo. Não foi possível conectar ao Supabase.") };
+      }
+      
+      return supabase
+        .from('user_roles')
+        .insert({ user_id: userId, role })
+        .select();
+    } catch (error) {
+      console.error("Erro ao adicionar role ao usuário:", error);
+      return { data: null, error };
+    }
   },
   
   // Remove user role
   removeUserRole: async (userId: string, role: string) => {
-    return supabase
-      .from('user_roles')
-      .delete()
-      .eq('user_id', userId)
-      .eq('role', role);
+    try {
+      await checkSupabaseConnection();
+      if (isOfflineMode) {
+        return { data: null, error: new Error("Modo offline ativo. Não foi possível conectar ao Supabase.") };
+      }
+      
+      return supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId)
+        .eq('role', role);
+    } catch (error) {
+      console.error("Erro ao remover role do usuário:", error);
+      return { data: null, error };
+    }
   },
   
   // List all user approvals
   listUserApprovals: async () => {
-    return supabase
-      .from('user_approvals')
-      .select('*');
+    try {
+      await checkSupabaseConnection();
+      if (isOfflineMode) {
+        return { data: [], error: new Error("Modo offline ativo. Não foi possível conectar ao Supabase.") };
+      }
+      
+      return supabase
+        .from('user_approvals')
+        .select('*');
+    } catch (error) {
+      console.error("Erro ao listar aprovações de usuários:", error);
+      return { data: [], error };
+    }
   },
   
   // List all users with a specific role
   listUsersWithRole: async (role: string) => {
-    return supabase
-      .from('user_roles')
-      .select('*')
-      .eq('role', role);
+    try {
+      await checkSupabaseConnection();
+      if (isOfflineMode) {
+        return { data: [], error: new Error("Modo offline ativo. Não foi possível conectar ao Supabase.") };
+      }
+      
+      return supabase
+        .from('user_roles')
+        .select('*')
+        .eq('role', role);
+    } catch (error) {
+      console.error("Erro ao listar usuários com role:", error);
+      return { data: [], error };
+    }
   }
 }
