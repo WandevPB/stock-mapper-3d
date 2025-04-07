@@ -1,3 +1,4 @@
+
 import { InventoryItem } from '@/types/inventory';
 
 // Google Sheets API endpoint - This is your Google Apps Script URL
@@ -149,7 +150,7 @@ export const SheetsService = {
 // Cole este código no Google Apps Script vinculado à sua planilha.
 export const googleAppsScriptCode = `
 function doGet(e) {
-  if (e.parameter.action === 'getAll') {
+  if (e && e.parameter && e.parameter.action === 'getAll') {
     return handleGetAll();
   }
   return ContentService.createTextOutput(JSON.stringify({
@@ -442,3 +443,4 @@ function handleDelete(itemId) {
   }
 }
 `;
+
