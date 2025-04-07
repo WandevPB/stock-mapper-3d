@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,6 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useInventory } from '@/context/InventoryContext';
 import { InventoryItem } from '@/types/inventory';
+import { SheetsService } from '@/services/SheetsService';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
   codSAP: z.string().min(1, { message: "SAP code is required" }),
@@ -31,6 +34,8 @@ interface InventoryFormProps {
 
 const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel }) => {
   const { addItem, updateItem } = useInventory();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
   const isEditing = !!item;
 
   const defaultValues: FormValues = {
@@ -48,7 +53,9 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
     defaultValues,
   });
 
-  const onSubmit = (data: FormValues) => {
+  const onSubmit = async (data: FormValues) => {
+    setIsSubmitting(true);
+    
     const itemData = {
       codSAP: data.codSAP,
       name: data.name,
@@ -61,14 +68,67 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
       },
     };
 
-    if (isEditing && item) {
-      updateItem(item.id, itemData);
-    } else {
-      addItem(itemData);
-    }
+    try {
+      let success = false;
+      
+      if (isEditing && item) {
+        // Update in local state
+        updateItem(item.id, itemData);
+        
+        // Update in Google Sheets
+        const updatedItem = { 
+          ...item, 
+          ...itemData, 
+          address: itemData.address 
+        };
+        
+        success = await SheetsService.updateItemInSheet(updatedItem);
+        
+        if (success) {
+          toast({
+            title: "Item atualizado",
+            description: "Item atualizado com sucesso no inventário e na planilha.",
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Erro ao atualizar na planilha",
+            description: "O item foi atualizado localmente, mas houve um erro ao sincronizar com a planilha.",
+          });
+        }
+      } else {
+        // Add to local state
+        const newItem = addItem(itemData);
+        
+        // Add to Google Sheets
+        success = await SheetsService.addItemToSheet(newItem);
+        
+        if (success) {
+          toast({
+            title: "Item adicionado",
+            description: "Item adicionado com sucesso ao inventário e à planilha.",
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Erro ao adicionar na planilha",
+            description: "O item foi adicionado localmente, mas houve um erro ao sincronizar com a planilha.",
+          });
+        }
+      }
 
-    if (onSuccess) {
-      onSuccess();
+      if (onSuccess) {
+        onSuccess();
+      }
+    } catch (error) {
+      console.error("Error submitting inventory form:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Ocorreu um erro ao processar a operação.",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -76,12 +136,12 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
     <Card className="glass-card w-full max-w-md mx-auto">
       <CardHeader>
         <CardTitle className="text-inventory-orange text-center">
-          {isEditing ? 'Edit Item' : 'Register New Item'}
+          {isEditing ? 'Editar Item' : 'Registrar Novo Item'}
         </CardTitle>
         <CardDescription className="text-center">
           {isEditing 
-            ? 'Update the information for this inventory item' 
-            : 'Fill in the details to add a new item to inventory'}
+            ? 'Atualize as informações deste item do inventário' 
+            : 'Preencha os detalhes para adicionar um novo item ao inventário'}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -93,9 +153,9 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
                 name="codSAP"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>SAP Code</FormLabel>
+                    <FormLabel>Código SAP</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter SAP code" {...field} />
+                      <Input placeholder="Digite o código SAP" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -106,9 +166,9 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
                 name="quantity"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Quantity (Optional)</FormLabel>
+                    <FormLabel>Quantidade (Opcional)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="Enter quantity" {...field} />
+                      <Input type="number" placeholder="Digite a quantidade" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -121,9 +181,9 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Item Name</FormLabel>
+                  <FormLabel>Nome do Item</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter item name" {...field} />
+                    <Input placeholder="Digite o nome do item" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -131,7 +191,7 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
             />
 
             <div className="space-y-2">
-              <h3 className="text-sm font-medium">Location Address</h3>
+              <h3 className="text-sm font-medium">Endereço de Localização</h3>
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -186,7 +246,7 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select side" />
+                            <SelectValue placeholder="Selecione o lado" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -207,15 +267,24 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
                   type="button" 
                   variant="outline" 
                   onClick={onCancel}
+                  disabled={isSubmitting}
                 >
-                  Cancel
+                  Cancelar
                 </Button>
               )}
               <Button 
                 type="submit" 
                 className="bg-inventory-orange hover:bg-inventory-orange-dark"
+                disabled={isSubmitting}
               >
-                {isEditing ? 'Update Item' : 'Add Item'}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {isEditing ? 'Atualizando...' : 'Adicionando...'}
+                  </>
+                ) : (
+                  isEditing ? 'Atualizar Item' : 'Adicionar Item'
+                )}
               </Button>
             </CardFooter>
           </form>

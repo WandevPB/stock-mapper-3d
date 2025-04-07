@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PageLayout from '@/components/layout/PageLayout';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Search, RefreshCw } from 'lucide-react';
+import { PlusCircle, Search, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import InventoryForm from '@/components/inventory/InventoryForm';
@@ -12,6 +12,9 @@ import { InventoryItem as InventoryItemType } from '@/types/inventory';
 import { useInventory } from '@/context/InventoryContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { SheetsService } from '@/services/SheetsService';
+import { useToast } from '@/hooks/use-toast';
 
 const Inventory = () => {
   const { items, isLoading, isError, refreshData } = useInventory();
@@ -20,6 +23,22 @@ const Inventory = () => {
   const [selectedItem, setSelectedItem] = useState<InventoryItemType | null>(null);
   const [moveItemModalOpen, setMoveItemModalOpen] = useState(false);
   const [itemToMove, setItemToMove] = useState<InventoryItemType | null>(null);
+  const [sheetsConfigured, setSheetsConfigured] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    // Check if Google Sheets API URL has been configured
+    const isConfigured = !SheetsService.SHEET_API_URL.includes('YOUR_SCRIPT_ID');
+    setSheetsConfigured(isConfigured);
+    
+    if (!isConfigured) {
+      toast({
+        variant: "destructive",
+        title: "Configuração Necessária",
+        description: "É necessário configurar a API do Google Sheets no arquivo SheetsService.ts",
+      });
+    }
+  }, [toast]);
 
   // Filter items based on search query
   const filteredItems = items.filter(item => {
@@ -74,6 +93,17 @@ const Inventory = () => {
   return (
     <PageLayout>
       <div className="container mx-auto px-4 py-8">
+        {!sheetsConfigured && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Atenção</AlertTitle>
+            <AlertDescription>
+              É necessário configurar a API do Google Sheets antes de utilizar o sistema. 
+              O código do App Script está disponível no console do desenvolvedor.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <h1 className="text-2xl font-bold text-inventory-orange">Inventário</h1>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">

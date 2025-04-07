@@ -21,9 +21,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Hardcoded admin credentials
-const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD = 'admin';
+// Hardcoded admin credentials - changed as requested
+const ADMIN_USERNAME = 'wanderson';
+const ADMIN_PASSWORD = 'admin123';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);

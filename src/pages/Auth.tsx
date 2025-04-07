@@ -53,11 +53,6 @@ const Auth = () => {
     }
   };
 
-  const fillAdminCredentials = () => {
-    loginForm.setValue('username', 'admin');
-    loginForm.setValue('password', 'admin');
-  };
-
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-inventory-gray p-4">
       <div className="w-full max-w-md space-y-8">
@@ -82,7 +77,7 @@ const Auth = () => {
                     <FormItem>
                       <FormLabel>Usuário</FormLabel>
                       <FormControl>
-                        <Input placeholder="admin" {...field} />
+                        <Input placeholder="Digite seu usuário" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -95,7 +90,7 @@ const Auth = () => {
                     <FormItem>
                       <FormLabel>Senha</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="******" {...field} />
+                        <Input type="password" placeholder="Digite sua senha" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -116,21 +111,6 @@ const Auth = () => {
               </form>
             </Form>
           </CardContent>
-          <CardFooter className="flex flex-col justify-center space-y-2">
-            <Alert>
-              <AlertDescription className="text-sm text-center">
-                Use admin / admin para entrar como administrador
-              </AlertDescription>
-            </Alert>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={fillAdminCredentials}
-              className="w-full text-xs"
-            >
-              Preencher credenciais de admin
-            </Button>
-          </CardFooter>
         </Card>
       </div>
     </div>
