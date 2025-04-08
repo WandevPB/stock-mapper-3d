@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import PageLayout from '@/components/layout/PageLayout';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Search, RefreshCw, AlertTriangle, Wifi, WifiOff, Loader2 } from 'lucide-react';
+import { PlusCircle, Search, RefreshCw, AlertTriangle, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import InventoryForm from '@/components/inventory/InventoryForm';
@@ -14,7 +15,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SheetsService, SHEET_API_URL } from '@/services/SheetsService';
 import { useToast } from '@/hooks/use-toast';
-import { isOfflineMode, checkSupabaseConnection } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 
 const Inventory = () => {
@@ -25,7 +25,6 @@ const Inventory = () => {
   const [moveItemModalOpen, setMoveItemModalOpen] = useState(false);
   const [itemToMove, setItemToMove] = useState<InventoryItemType | null>(null);
   const [sheetsConfigured, setSheetsConfigured] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<'online' | 'offline' | 'checking'>('checking');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -40,20 +39,6 @@ const Inventory = () => {
         description: "É necessário configurar a API do Google Sheets no arquivo SheetsService.ts",
       });
     }
-    
-    // Verificar status de conexão
-    const checkConnection = async () => {
-      setConnectionStatus('checking');
-      const isConnected = await checkSupabaseConnection();
-      setConnectionStatus(isConnected ? 'online' : 'offline');
-    };
-    
-    checkConnection();
-    
-    // Verificar a cada 30 segundos
-    const interval = setInterval(checkConnection, 30000);
-    
-    return () => clearInterval(interval);
   }, [toast]);
 
   // Filter items based on search query
@@ -86,22 +71,12 @@ const Inventory = () => {
     setItemToMove(null);
   };
   
-  const handleConnectionCheck = async () => {
-    setConnectionStatus('checking');
-    const isConnected = await checkSupabaseConnection();
-    setConnectionStatus(isConnected ? 'online' : 'offline');
-    
+  const handleRefreshData = () => {
+    refreshData();
     toast({
-      title: isConnected ? "Conexão Estabelecida" : "Modo Offline",
-      description: isConnected 
-        ? "Sistema está conectado à base de dados." 
-        : "Sistema operando em modo offline. Dados serão sincronizados quando a conexão for restaurada.",
-      variant: isConnected ? "default" : "destructive",
+      title: "Atualização iniciada",
+      description: "Buscando dados mais recentes das planilhas...",
     });
-    
-    if (isConnected) {
-      refreshData();
-    }
   };
 
   // Render loading skeletons
@@ -127,24 +102,6 @@ const Inventory = () => {
   return (
     <PageLayout>
       <div className="container mx-auto px-4 py-8">
-        {connectionStatus === 'offline' && (
-          <Alert variant="destructive" className="mb-6">
-            <WifiOff className="h-4 w-4" />
-            <AlertTitle>Modo Offline Ativo</AlertTitle>
-            <AlertDescription>
-              O sistema está operando em modo offline. Os dados são armazenados localmente e serão sincronizados quando a conexão com o servidor for restaurada.
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="ml-2 mt-2" 
-                onClick={handleConnectionCheck}
-              >
-                Verificar Conexão
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
-      
         {!sheetsConfigured && (
           <Alert variant="destructive" className="mb-6">
             <AlertTriangle className="h-4 w-4" />
@@ -159,22 +116,9 @@ const Inventory = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold text-inventory-orange">Inventário</h1>
-            {connectionStatus === 'online' ? (
-              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                <Wifi className="h-3 w-3 mr-1" />
-                Online
-              </Badge>
-            ) : connectionStatus === 'offline' ? (
-              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                <WifiOff className="h-3 w-3 mr-1" />
-                Offline
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">
-                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                Verificando
-              </Badge>
-            )}
+            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+              Planilhas Google
+            </Badge>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <div className="relative flex-1 sm:flex-none">
@@ -189,7 +133,7 @@ const Inventory = () => {
             <Button 
               variant="outline" 
               size="icon" 
-              onClick={refreshData} 
+              onClick={handleRefreshData} 
               className="hidden sm:flex"
               title="Atualizar dados"
             >
@@ -230,7 +174,7 @@ const Inventory = () => {
                 Ocorreu um erro ao carregar os itens. Por favor, tente novamente.
               </p>
               <Button 
-                onClick={refreshData} 
+                onClick={handleRefreshData} 
                 variant="outline" 
                 className="mt-4"
               >

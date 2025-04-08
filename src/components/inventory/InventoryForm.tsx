@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -7,13 +8,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useInventory } from '@/context/InventoryContext';
 import { InventoryItem } from '@/types/inventory';
 import { SheetsService } from '@/services/SheetsService';
 import { useToast } from '@/hooks/use-toast';
-import { isOfflineMode, checkSupabaseConnection } from '@/integrations/supabase/client';
 
 const formSchema = z.object({
   codSAP: z.string().min(1, { message: "SAP code is required" }),
@@ -36,19 +35,8 @@ interface InventoryFormProps {
 const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel }) => {
   const { addItem, updateItem } = useInventory();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<'online' | 'offline' | 'checking'>('checking');
   const { toast } = useToast();
   const isEditing = !!item;
-
-  useEffect(() => {
-    const checkConnection = async () => {
-      setConnectionStatus('checking');
-      const isConnected = await checkSupabaseConnection();
-      setConnectionStatus(isConnected ? 'online' : 'offline');
-    };
-    
-    checkConnection();
-  }, []);
 
   const defaultValues: FormValues = {
     codSAP: item?.codSAP || '',
@@ -87,42 +75,33 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
         // Update in local state
         await updateItem(item.id, itemData);
         
-        // Update in Google Sheets only if online
-        if (connectionStatus === 'online') {
-          // Update in Google Sheets
-          const updatedItem = { 
-            ...item, 
-            ...itemData, 
-            address: itemData.address 
-          };
-          
-          success = await SheetsService.updateItemInSheet(updatedItem);
-          
-          if (success) {
-            toast({
-              title: "Item atualizado",
-              description: "Item atualizado com sucesso no inventário e na planilha.",
-            });
-          } else {
-            toast({
-              variant: "destructive",
-              title: "Sincronização parcial",
-              description: "O item foi atualizado localmente, mas houve um erro ao sincronizar com a planilha.",
-            });
-          }
+        // Update in Google Sheets
+        const updatedItem = { 
+          ...item, 
+          ...itemData, 
+          address: itemData.address 
+        };
+        
+        success = await SheetsService.updateItemInSheet(updatedItem);
+        
+        if (success) {
+          toast({
+            title: "Item atualizado",
+            description: "Item atualizado com sucesso no inventário e na planilha.",
+          });
         } else {
           toast({
             variant: "destructive",
-            title: "Modo Offline Ativo",
-            description: "O item foi atualizado localmente. Sincronização com a planilha será feita quando a conexão for restaurada.",
+            title: "Erro na sincronização",
+            description: "O item foi atualizado localmente, mas houve um erro ao sincronizar com a planilha.",
           });
         }
       } else {
         // Add to local state first
         const newItem = await addItem(itemData);
         
-        // Add to Google Sheets only if online
-        if (connectionStatus === 'online' && newItem) {
+        // Add to Google Sheets
+        if (newItem) {
           success = await SheetsService.addItemToSheet(newItem);
           
           if (success) {
@@ -133,23 +112,17 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
           } else {
             toast({
               variant: "destructive",
-              title: "Sincronização parcial",
+              title: "Erro na sincronização",
               description: "O item foi adicionado localmente, mas houve um erro ao sincronizar com a planilha.",
             });
           }
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Modo Offline Ativo",
-            description: "O item foi adicionado localmente. Sincronização será feita quando a conexão for restaurada.",
-          });
         }
       }
 
       if (onSuccess) {
         onSuccess();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting inventory form:", error);
       toast({
         variant: "destructive",
@@ -174,16 +147,6 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {connectionStatus === 'offline' && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Modo Offline Ativo</AlertTitle>
-            <AlertDescription>
-              Você está trabalhando no modo offline. As alterações serão armazenadas localmente e sincronizadas quando a conexão for restaurada.
-            </AlertDescription>
-          </Alert>
-        )}
-        
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

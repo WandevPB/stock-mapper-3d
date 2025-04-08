@@ -1,9 +1,10 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { InventoryItem, Address, Movement } from '@/types/inventory';
-import { SupabaseService } from '@/services/SupabaseService';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { SheetsService } from '@/services/SheetsService';
+import { v4 as uuidv4 } from 'uuid';
 
 interface InventoryContextType {
   items: InventoryItem[];
@@ -20,6 +21,21 @@ interface InventoryContextType {
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
 
+// Helper function to fetch items from Google Sheets
+const fetchItemsFromSheets = async (): Promise<InventoryItem[]> => {
+  try {
+    return await SheetsService.getAllItemsFromSheet();
+  } catch (error) {
+    console.error("Error fetching items from sheets:", error);
+    throw error;
+  }
+};
+
+// Mock function for movements as they might not be in the sheets yet
+const fetchMovementsFromSheets = async (): Promise<Movement[]> => {
+  return [];
+};
+
 export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -32,7 +48,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     refetch: refetchItems
   } = useQuery({
     queryKey: ['inventoryItems'],
-    queryFn: SupabaseService.fetchInventoryItems
+    queryFn: fetchItemsFromSheets
   });
 
   // Fetch movements
@@ -43,19 +59,23 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     refetch: refetchMovements
   } = useQuery({
     queryKey: ['movements'],
-    queryFn: SupabaseService.fetchMovements
+    queryFn: fetchMovementsFromSheets
   });
 
   // Add item mutation
   const addItemMutation = useMutation({
-    mutationFn: SupabaseService.addInventoryItem,
+    mutationFn: (newItem: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>) => {
+      const now = new Date();
+      const completeItem: InventoryItem = {
+        id: uuidv4(),
+        ...newItem,
+        createdAt: now,
+        updatedAt: now
+      };
+      return Promise.resolve(completeItem);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventoryItems'] });
-      queryClient.invalidateQueries({ queryKey: ['movements'] });
-      toast({
-        title: "Item adicionado",
-        description: "O item foi adicionado com sucesso ao inventário.",
-      });
     },
     onError: (error) => {
       toast({
@@ -68,14 +88,24 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Update item mutation
   const updateItemMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string, updates: any }) => 
-      SupabaseService.updateInventoryItem(id, updates),
+    mutationFn: ({ id, updates }: { id: string, updates: any }) => {
+      // Find the item in the current state
+      const itemIndex = items.findIndex(item => item.id === id);
+      if (itemIndex === -1) {
+        throw new Error("Item not found");
+      }
+      
+      // Return the updated item
+      const updatedItem = {
+        ...items[itemIndex],
+        ...updates,
+        updatedAt: new Date()
+      };
+      
+      return Promise.resolve(updatedItem);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventoryItems'] });
-      toast({
-        title: "Item atualizado",
-        description: "O item foi atualizado com sucesso.",
-      });
     },
     onError: (error) => {
       toast({
@@ -88,10 +118,15 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Delete item mutation
   const deleteItemMutation = useMutation({
-    mutationFn: SupabaseService.deleteInventoryItem,
+    mutationFn: async (id: string) => {
+      const success = await SheetsService.deleteItemFromSheet(id);
+      if (!success) {
+        throw new Error("Failed to delete item from sheet");
+      }
+      return id;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventoryItems'] });
-      queryClient.invalidateQueries({ queryKey: ['movements'] });
       toast({
         title: "Item removido",
         description: "O item foi removido com sucesso do inventário.",
@@ -108,11 +143,17 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Move item mutation
   const moveItemMutation = useMutation({
-    mutationFn: ({ id, newAddress, quantity }: { id: string, newAddress: Address, quantity?: number }) => 
-      SupabaseService.moveInventoryItem(id, newAddress, quantity),
+    mutationFn: async ({ id, newAddress, quantity }: { id: string, newAddress: Address, quantity?: number }) => {
+      // Update in Google Sheets
+      const success = await SheetsService.moveItemInSheet(id, newAddress);
+      if (!success) {
+        throw new Error("Failed to move item in sheet");
+      }
+      
+      return { id, newAddress, quantity };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventoryItems'] });
-      queryClient.invalidateQueries({ queryKey: ['movements'] });
       toast({
         title: "Item movido",
         description: "O item foi movido com sucesso para o novo endereço.",
@@ -131,23 +172,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const isError = isItemsError || isMovementsError;
 
   const addItem = async (newItem: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<InventoryItem> => {
-    // Create a temporary ID for local use
-    const tempId = `temp_${Date.now()}`;
-    const now = new Date();
-    
-    // Create a complete item with temporary ID and timestamps
-    const completeItem: InventoryItem = {
-      id: tempId,
-      ...newItem,
-      createdAt: now,
-      updatedAt: now
-    };
-    
-    // Use mutation to add the item
-    await addItemMutation.mutateAsync(newItem);
-    
-    // Return the complete item for use in the UI and for Google Sheets
-    return completeItem;
+    return await addItemMutation.mutateAsync(newItem);
   };
 
   const updateItem = async (id: string, updates: Partial<Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>>) => {
@@ -163,25 +188,21 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   };
 
   const searchItems = async (query: string): Promise<InventoryItem[]> => {
-    try {
-      return await SupabaseService.searchInventoryItems(query);
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Erro na busca",
-        description: `Não foi possível buscar itens: ${error.message}`,
-      });
-      return [];
-    }
+    const lowerQuery = query.toLowerCase();
+    
+    // Search in the current items array
+    const filteredItems = items.filter(item => 
+      item.name.toLowerCase().includes(lowerQuery) ||
+      item.codSAP.toLowerCase().includes(lowerQuery) ||
+      `${item.address.rua}-${item.address.bloco}-${item.address.altura}-${item.address.lado}`.toLowerCase().includes(lowerQuery)
+    );
+    
+    return filteredItems;
   };
 
   const refreshData = () => {
     refetchItems();
     refetchMovements();
-    toast({
-      title: "Dados atualizados",
-      description: "Os dados do inventário foram atualizados.",
-    });
   };
 
   const value = {
