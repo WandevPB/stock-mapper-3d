@@ -28,8 +28,11 @@ export const UserManagementService = {
         
       if (adminError) throw adminError;
       
-      // Map to a more usable format
-      const approvedMap = new Map(approvedUsers?.map(u => [u.user_id, u.is_approved]) || []);
+      // Create a map of user_id to approval status
+      const approvedMap = new Map();
+      approvedUsers?.forEach(u => approvedMap.set(u.user_id, u.is_approved));
+      
+      // Create a set of admin user IDs
       const adminMap = new Set(adminUsers?.map(u => u.user_id) || []);
       
       const formattedUsers = authUsers.users.map(user => ({
@@ -37,7 +40,7 @@ export const UserManagementService = {
         email: user.email || '',
         name: user.user_metadata?.name || '',
         created_at: user.created_at,
-        is_approved: approvedMap.get(user.id) || false,
+        is_approved: Boolean(approvedMap.get(user.id)) || false,
         is_admin: adminMap.has(user.id)
       }));
       

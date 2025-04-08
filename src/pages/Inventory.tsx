@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import PageLayout from '@/components/layout/PageLayout';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Search, RefreshCw, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
+import { PlusCircle, Search, RefreshCw, AlertTriangle, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import InventoryForm from '@/components/inventory/InventoryForm';
@@ -97,7 +96,7 @@ const Inventory = () => {
       description: isConnected 
         ? "Sistema está conectado à base de dados." 
         : "Sistema operando em modo offline. Dados serão sincronizados quando a conexão for restaurada.",
-      variant: isConnected ? "default" : "warning",
+      variant: isConnected ? "default" : "destructive",
     });
     
     if (isConnected) {
@@ -129,7 +128,7 @@ const Inventory = () => {
     <PageLayout>
       <div className="container mx-auto px-4 py-8">
         {connectionStatus === 'offline' && (
-          <Alert variant="warning" className="mb-6">
+          <Alert variant="destructive" className="mb-6">
             <WifiOff className="h-4 w-4" />
             <AlertTitle>Modo Offline Ativo</AlertTitle>
             <AlertDescription>

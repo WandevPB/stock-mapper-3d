@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -9,12 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { useInventory } from '@/context/InventoryContext';
 import { InventoryItem } from '@/types/inventory';
 import { SheetsService } from '@/services/SheetsService';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
 import { isOfflineMode, checkSupabaseConnection } from '@/integrations/supabase/client';
 
 const formSchema = z.object({
@@ -107,14 +105,14 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
             });
           } else {
             toast({
-              variant: "warning",
+              variant: "destructive",
               title: "Sincronização parcial",
               description: "O item foi atualizado localmente, mas houve um erro ao sincronizar com a planilha.",
             });
           }
         } else {
           toast({
-            variant: "warning",
+            variant: "destructive",
             title: "Modo Offline Ativo",
             description: "O item foi atualizado localmente. Sincronização com a planilha será feita quando a conexão for restaurada.",
           });
@@ -134,14 +132,14 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
             });
           } else {
             toast({
-              variant: "warning",
+              variant: "destructive",
               title: "Sincronização parcial",
               description: "O item foi adicionado localmente, mas houve um erro ao sincronizar com a planilha.",
             });
           }
         } else {
           toast({
-            variant: "warning",
+            variant: "destructive",
             title: "Modo Offline Ativo",
             description: "O item foi adicionado localmente. Sincronização será feita quando a conexão for restaurada.",
           });
@@ -177,7 +175,7 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
       </CardHeader>
       <CardContent>
         {connectionStatus === 'offline' && (
-          <Alert variant="warning" className="mb-4">
+          <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Modo Offline Ativo</AlertTitle>
             <AlertDescription>
