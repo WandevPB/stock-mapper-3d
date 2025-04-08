@@ -1,8 +1,7 @@
-
 import { InventoryItem } from '@/types/inventory';
 
 // Google Sheets API endpoint - This is your Google Apps Script URL
-export const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbwc2qV8aqUnwTMrk-gHUIwRHGkuRrs05JR8WDQJQTbJlBKr-CAxLOIx9H23BNU7Hqk38Q/exec';
+export const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbxIZCWvV7-1H3UuAsx14Zeq-bYfkZk3Ov3uBqwHSFy76lLnqrcQolGk0x3Oh4weCgVG/exec';
 
 export const SheetsService = {
   // Add item to Google Sheets
@@ -443,4 +442,3 @@ function handleDelete(itemId) {
   }
 }
 `;
-
