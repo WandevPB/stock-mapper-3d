@@ -16,9 +16,9 @@ import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
   quantity: z.string().optional(),
-  rua: z.string().min(1, { message: "Rua is required" }),
-  bloco: z.string().min(1, { message: "Bloco is required" }),
-  altura: z.string().min(1, { message: "Altura is required" }),
+  rua: z.string().min(1, { message: "RUA is required" }),
+  bloco: z.string().min(1, { message: "BLOCO is required" }),
+  altura: z.string().min(1, { message: "NIVEL is required" }),
   lado: z.enum(["A", "B"], { message: "Side must be A or B" }),
 });
 
@@ -141,9 +141,9 @@ const MoveItemForm: React.FC<MoveItemFormProps> = ({ item, onSuccess, onCancel }
                   name="rua"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Rua</FormLabel>
+                      <FormLabel>RUA</FormLabel>
                       <FormControl>
-                        <Input placeholder="Rua" {...field} />
+                        <Input placeholder="RUA" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -154,9 +154,9 @@ const MoveItemForm: React.FC<MoveItemFormProps> = ({ item, onSuccess, onCancel }
                   name="bloco"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Bloco</FormLabel>
+                      <FormLabel>BLOCO</FormLabel>
                       <FormControl>
-                        <Input placeholder="Bloco" {...field} />
+                        <Input placeholder="BLOCO" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -169,9 +169,9 @@ const MoveItemForm: React.FC<MoveItemFormProps> = ({ item, onSuccess, onCancel }
                   name="altura"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Altura</FormLabel>
+                      <FormLabel>NIVEL</FormLabel>
                       <FormControl>
-                        <Input placeholder="Altura" {...field} />
+                        <Input placeholder="NIVEL" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -182,7 +182,7 @@ const MoveItemForm: React.FC<MoveItemFormProps> = ({ item, onSuccess, onCancel }
                   name="lado"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Lado</FormLabel>
+                      <FormLabel>LADO</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
                         defaultValue={field.value}
