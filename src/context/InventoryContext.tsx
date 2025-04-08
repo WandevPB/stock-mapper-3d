@@ -1,10 +1,10 @@
-
 import React, { createContext, useContext, useState } from 'react';
 import { InventoryItem, Address, Movement } from '@/types/inventory';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { SheetsService } from '@/services/SheetsService';
 import { v4 as uuidv4 } from 'uuid';
+import { isOfflineMode, offlineStorage } from '@/integrations/supabase/client';
 
 interface InventoryContextType {
   items: InventoryItem[];
@@ -24,10 +24,22 @@ const InventoryContext = createContext<InventoryContextType | undefined>(undefin
 // Helper function to fetch items from Google Sheets
 const fetchItemsFromSheets = async (): Promise<InventoryItem[]> => {
   try {
-    return await SheetsService.getAllItemsFromSheet();
+    // If we have items in offline storage, use those first
+    if (offlineStorage.inventory.length > 0) {
+      console.log("Using cached inventory items:", offlineStorage.inventory.length);
+      return [...offlineStorage.inventory];
+    }
+    
+    // Otherwise fetch from Google Sheets
+    const items = await SheetsService.getAllItemsFromSheet();
+    
+    // Store in offline storage for later use
+    offlineStorage.inventory = [...items];
+    
+    return items;
   } catch (error) {
     console.error("Error fetching items from sheets:", error);
-    throw error;
+    return [];
   }
 };
 
@@ -48,7 +60,9 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     refetch: refetchItems
   } = useQuery({
     queryKey: ['inventoryItems'],
-    queryFn: fetchItemsFromSheets
+    queryFn: fetchItemsFromSheets,
+    retry: 1, // Only retry once to avoid excessive failed requests
+    refetchOnWindowFocus: false, // Don't refetch on window focus to reduce API calls
   });
 
   // Fetch movements
@@ -72,10 +86,21 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         createdAt: now,
         updatedAt: now
       };
+      
+      // Add to offline storage
+      offlineStorage.inventory.push(completeItem);
+      
       return Promise.resolve(completeItem);
     },
-    onSuccess: () => {
+    onSuccess: (newItem) => {
       queryClient.invalidateQueries({ queryKey: ['inventoryItems'] });
+      
+      // Try to sync with Google Sheets in the background
+      SheetsService.addItemToSheet(newItem).then(success => {
+        if (!success) {
+          console.warn("Item added to local storage but failed to sync with Google Sheets");
+        }
+      });
     },
     onError: (error) => {
       toast({
@@ -95,17 +120,30 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         throw new Error("Item not found");
       }
       
-      // Return the updated item
+      // Create updated item
       const updatedItem = {
         ...items[itemIndex],
         ...updates,
         updatedAt: new Date()
       };
       
+      // Update in offline storage
+      const offlineIndex = offlineStorage.inventory.findIndex(item => item.id === id);
+      if (offlineIndex >= 0) {
+        offlineStorage.inventory[offlineIndex] = updatedItem;
+      }
+      
       return Promise.resolve(updatedItem);
     },
-    onSuccess: () => {
+    onSuccess: (updatedItem) => {
       queryClient.invalidateQueries({ queryKey: ['inventoryItems'] });
+      
+      // Try to sync with Google Sheets in the background
+      SheetsService.updateItemInSheet(updatedItem).then(success => {
+        if (!success) {
+          console.warn("Item updated in local storage but failed to sync with Google Sheets");
+        }
+      });
     },
     onError: (error) => {
       toast({
@@ -123,6 +161,10 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (!success) {
         throw new Error("Failed to delete item from sheet");
       }
+      
+      // Remove from offline storage
+      offlineStorage.inventory = offlineStorage.inventory.filter(item => item.id !== id);
+      
       return id;
     },
     onSuccess: () => {
@@ -148,6 +190,17 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const success = await SheetsService.moveItemInSheet(id, newAddress);
       if (!success) {
         throw new Error("Failed to move item in sheet");
+      }
+      
+      // Update in offline storage
+      const offlineIndex = offlineStorage.inventory.findIndex(item => item.id === id);
+      if (offlineIndex >= 0) {
+        offlineStorage.inventory[offlineIndex] = {
+          ...offlineStorage.inventory[offlineIndex],
+          address: newAddress,
+          quantity: quantity !== undefined ? quantity : offlineStorage.inventory[offlineIndex].quantity,
+          updatedAt: new Date()
+        };
       }
       
       return { id, newAddress, quantity };

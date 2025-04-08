@@ -16,6 +16,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SheetsService, SHEET_API_URL } from '@/services/SheetsService';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { isOfflineMode } from '@/integrations/supabase/client';
 
 const Inventory = () => {
   const { items, isLoading, isError, refreshData } = useInventory();
@@ -24,21 +25,27 @@ const Inventory = () => {
   const [selectedItem, setSelectedItem] = useState<InventoryItemType | null>(null);
   const [moveItemModalOpen, setMoveItemModalOpen] = useState(false);
   const [itemToMove, setItemToMove] = useState<InventoryItemType | null>(null);
-  const [sheetsConfigured, setSheetsConfigured] = useState(false);
+  const [corsIssue, setCorsIssue] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if Google Sheets API URL has been configured
-    const isConfigured = !SHEET_API_URL.includes('YOUR_SCRIPT_ID');
-    setSheetsConfigured(isConfigured);
-    
-    if (!isConfigured) {
-      toast({
-        variant: "destructive",
-        title: "Configuração Necessária",
-        description: "É necessário configurar a API do Google Sheets no arquivo SheetsService.ts",
-      });
+    // Check if we can reach the Google Sheets API
+    async function checkSheetsConnection() {
+      try {
+        const testItems = await SheetsService.getAllItemsFromSheet();
+        setCorsIssue(false);
+      } catch (error) {
+        console.error("Error connecting to Google Sheets:", error);
+        setCorsIssue(true);
+        toast({
+          variant: "destructive",
+          title: "Erro de Conexão",
+          description: "Problemas de CORS ao acessar a API do Google Sheets. Os dados serão armazenados localmente.",
+        });
+      }
     }
+    
+    checkSheetsConnection();
   }, [toast]);
 
   // Filter items based on search query
@@ -102,13 +109,24 @@ const Inventory = () => {
   return (
     <PageLayout>
       <div className="container mx-auto px-4 py-8">
-        {!sheetsConfigured && (
+        {corsIssue && (
           <Alert variant="destructive" className="mb-6">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Atenção</AlertTitle>
+            <AlertTitle>Erro de CORS</AlertTitle>
             <AlertDescription>
-              É necessário configurar a API do Google Sheets antes de utilizar o sistema. 
-              O código do App Script está disponível no console do desenvolvedor.
+              O navegador não consegue acessar a API do Google Sheets devido a restrições de CORS.
+              As alterações estão sendo salvas apenas localmente. Configure o CORS no seu App Script.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {isOfflineMode && (
+          <Alert variant="warning" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Modo Offline</AlertTitle>
+            <AlertDescription>
+              O aplicativo está operando em modo offline. A conexão com o Supabase não está disponível.
+              Os dados estão sendo armazenados localmente e sincronizados com o Google Sheets quando possível.
             </AlertDescription>
           </Alert>
         )}

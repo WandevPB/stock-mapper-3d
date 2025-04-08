@@ -7,7 +7,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://hssyqauktqciz
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhzc3lxYXVrdHFjaXp3YmxxaG5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI4MzEzNDEsImV4cCI6MjA1ODQwNzM0MX0.M718sSPqeAhyqJbNnAVTCEnAcZxDTzAaMpHy0VQQAYk";
 
 // Estado offline local para desenvolvimento e modo fallback
-export let isOfflineMode = false;
+export let isOfflineMode = true; // Default to offline mode to prevent errors
 export const offlineStorage = {
   inventory: [] as any[],
   movements: [] as any[],
@@ -37,12 +37,26 @@ export const checkSupabaseConnection = async (): Promise<boolean> => {
     
     offlineStorage.lastConnectionAttempt = now;
     
-    // Tentativa simples de consulta para verificar conexão
-    const { error } = await supabase.from('addresses').select('count', { count: 'exact', head: true });
+    // Since we're having DNS issues, wrap this in a timeout so it doesn't hang
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
     
-    // Se não houver erro, estamos conectados
-    isOfflineMode = !!error;
-    return !isOfflineMode;
+    try {
+      // Tentativa simples de consulta para verificar conexão
+      const { error } = await supabase.from('addresses').select('count', { 
+        count: 'exact', 
+        head: true 
+      }).abortSignal(controller.signal);
+      
+      // If no error, we're connected
+      isOfflineMode = !!error;
+      clearTimeout(timeoutId);
+      return !isOfflineMode;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      isOfflineMode = true;
+      return false;
+    }
   } catch (e) {
     console.error("Erro ao verificar conexão com Supabase:", e);
     isOfflineMode = true;
@@ -50,9 +64,13 @@ export const checkSupabaseConnection = async (): Promise<boolean> => {
   }
 };
 
-// Verificar a conexão imediatamente e depois a cada 30 segundos
-checkSupabaseConnection();
+// Force offline mode to true immediately
+isOfflineMode = true;
+console.log("Starting in offline mode due to connection issues. Using Google Sheets instead.");
+
+// Run a connectivity check periodically but don't block startup
 if (typeof window !== 'undefined') {
+  setTimeout(checkSupabaseConnection, 5000);
   setInterval(checkSupabaseConnection, 30000);
 }
 
