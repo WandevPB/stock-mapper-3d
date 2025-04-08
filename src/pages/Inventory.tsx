@@ -121,7 +121,7 @@ const Inventory = () => {
         )}
 
         {isOfflineMode && (
-          <Alert variant="warning" className="mb-4">
+          <Alert variant="default" className="mb-4 bg-amber-50 border-amber-200 text-amber-800">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Modo Offline</AlertTitle>
             <AlertDescription>
