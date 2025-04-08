@@ -1,3 +1,4 @@
+
 import { InventoryItem } from '@/types/inventory';
 
 // Google Sheets API endpoint - This is your Google Apps Script URL
@@ -133,7 +134,8 @@ export const SheetsService = {
             altura: item.altura,
             lado: item.lado
           },
-          createdAt: item.createdAt || new Date().toISOString()
+          createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+          updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date()
         }));
       }
       

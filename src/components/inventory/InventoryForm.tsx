@@ -183,9 +183,9 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nome do Item</FormLabel>
+                  <FormLabel>Descrição</FormLabel>
                   <FormControl>
-                    <Input placeholder="Digite o nome do item" {...field} />
+                    <Input placeholder="Digite a descrição do item" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -200,9 +200,9 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
                   name="rua"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Rua</FormLabel>
+                      <FormLabel>RUA</FormLabel>
                       <FormControl>
-                        <Input placeholder="Rua" {...field} />
+                        <Input placeholder="RUA" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -213,9 +213,9 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
                   name="bloco"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Bloco</FormLabel>
+                      <FormLabel>BLOCO</FormLabel>
                       <FormControl>
-                        <Input placeholder="Bloco" {...field} />
+                        <Input placeholder="BLOCO" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -228,9 +228,9 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
                   name="altura"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Altura</FormLabel>
+                      <FormLabel>NIVEL</FormLabel>
                       <FormControl>
-                        <Input placeholder="Altura" {...field} />
+                        <Input placeholder="NIVEL" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -241,7 +241,7 @@ const InventoryForm: React.FC<InventoryFormProps> = ({ item, onSuccess, onCancel
                   name="lado"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Lado</FormLabel>
+                      <FormLabel>LADO</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
                         defaultValue={field.value}
